@@ -11,13 +11,15 @@ import Register from "./pages/Register";
 // Page principale après connexion
 import Dashboard from "./pages/Dashboard";
 // Page pour afficher la liste des annonces
-import Annonces from "./pages/Annonces"; // <<< NOUVEL IMPORT (à créer/adapter)
+import Annonces from "./pages/Annonces";
 // Page pour le formulaire de création/modification d'annonce
-// import AnnonceForm from "./pages/AnnonceForm"; // <<< À créer/adapter plus tard
-// Page pour la page non trouvée (optionnel mais recommandé)
-import NotFound from "./pages/NotFound"; // <<< À créer/adapter ou utiliser celui existant
+import AnnonceForm from "./pages/AnnonceForm";
+// --- AJOUT IMPORT : Page pour les détails d'une annonce ---
+import AnnonceDetail from "./pages/AnnonceDetail";
+// Page pour la page non trouvée
+import NotFound from "./pages/NotFound";
 
-// --- IMPORTS DES PAGES DE L'ANCIEN PROJET (À SUPPRIMER ou adapter plus tard) ---
+// --- IMPORTS DES PAGES DE L'ANCIEN PROJET (GARDÉS COMMENTÉS OU À SUPPRIMER) ---
 // import Projects from "./pages/Projects";
 // import ProjectForm from "./pages/ProjectForm";
 // import Tasks from "./pages/Tasks";
@@ -63,7 +65,7 @@ function App() {
 
           {/* --- Routes Protégées (Nécessitent une connexion) --- */}
 
-          {/* Route Racine ('/') -> Redirige vers Dashboard si connecté */}
+          {/* Route Racine ('/') -> Affiche le Dashboard si connecté */}
           <Route
             path="/"
             element={
@@ -83,9 +85,19 @@ function App() {
             }
           />
 
-          {/* Routes pour le formulaire Annonce (Création & Modification) */}
-          {/* À décommenter et implémenter plus tard */}
-          {/*
+          {/* --- AJOUTÉ : Route pour voir les Détails d'une Annonce --- */}
+          {/* Doit être AVANT la route /annonces/:id pour éviter les conflits */}
+          <Route
+            path="/annonces/detail/:id" // Nouvelle route spécifique
+            element={
+              <ProtectedRoute>
+                <AnnonceDetail /> {/* Pointe vers le composant de détails */}
+              </ProtectedRoute>
+            }
+          />
+          {/* --- FIN AJOUT --- */}
+
+          {/* Route pour le formulaire Annonce (Création) */}
           <Route
             path="/annonces/new" // URL pour créer une nouvelle annonce
             element={
@@ -94,39 +106,28 @@ function App() {
               </ProtectedRoute>
             }
           />
+           {/* Route pour le formulaire Annonce (Modification) */}
+           {/* Cette route est utilisée pour l'édition via AnnonceForm */}
           <Route
-            path="/annonces/:id" // URL pour modifier/voir détails d'une annonce existante
+            path="/annonces/:id"
             element={
               <ProtectedRoute>
-                <AnnonceForm /> // Le même formulaire peut gérer création et modification
+                <AnnonceForm />
               </ProtectedRoute>
             }
           />
-          */}
 
 
-          {/* --- Routes de l'Ancien Projet (COMMENTÉES) --- */}
-          {/* Supprimez ces sections si vous n'en avez plus besoin */}
+          {/* --- Routes de l'Ancien Projet (COMMENTÉES OU À SUPPRIMER) --- */}
           {/*
           <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-          <Route path="/projects/new" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-          <Route path="/projects/:id" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
-          <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-          <Route path="/tasks/new" element={<ProtectedRoute><TaskForm /></ProtectedRoute>} />
-          <Route path="/tasks/:id" element={<ProtectedRoute><TaskForm /></ProtectedRoute>} />
-          <Route path="/resources" element={<ProtectedRoute><Resources /></ProtectedRoute>} />
-          <Route path="/resources/new" element={<ProtectedRoute><ResourceForm /></ProtectedRoute>} />
-          <Route path="/resources/:id" element={<ProtectedRoute><ResourceForm /></ProtectedRoute>} />
-          <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-          <Route path="/suppliers/new" element={<ProtectedRoute><SupplierForm /></ProtectedRoute>} />
-          <Route path="/suppliers/:id" element={<ProtectedRoute><SupplierForm /></ProtectedRoute>} />
+          // ... etc ...
           */}
           {/* --- Fin Routes Ancien Projet --- */}
 
 
           {/* Route "Catch-all" pour les pages non trouvées */}
-          {/* Décommentez si vous avez un composant NotFound */}
-           <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
 
         </Routes>
       </Router>
