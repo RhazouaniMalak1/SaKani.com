@@ -14,116 +14,105 @@ import Dashboard from "./pages/Dashboard";
 import Annonces from "./pages/Annonces";
 // Page pour le formulaire de création/modification d'annonce
 import AnnonceForm from "./pages/AnnonceForm";
-// --- AJOUT IMPORT : Page pour les détails d'une annonce ---
+// Page pour voir les détails d'une annonce
 import AnnonceDetail from "./pages/AnnonceDetail";
+// Page pour la RECHERCHE d'annonces d'un vendeur (Admin)
+import AnnoncesVendeur from "./pages/AnnoncesVendeur";
+// Page pour la RECHERCHE des visiteurs d'une annonce (Admin)
+import AnnonceVisiteurs from "./pages/AnnonceVisiteurs";
+// --- AJOUT IMPORT : Page pour l'historique de visite d'un client ---
+import ClientAnnoncesVisitees from "./pages/ClientAnnoncesVisitees";
 // Page pour la page non trouvée
 import NotFound from "./pages/NotFound";
 
 // --- IMPORTS DES PAGES DE L'ANCIEN PROJET (GARDÉS COMMENTÉS OU À SUPPRIMER) ---
-// import Projects from "./pages/Projects";
-// import ProjectForm from "./pages/ProjectForm";
-// import Tasks from "./pages/Tasks";
-// import TaskForm from "./pages/TaskForm";
-// import Resources from "./pages/Resources";
-// import ResourceForm from "./pages/ResourceForm";
-// import Suppliers from "./pages/Suppliers";
-// import SupplierForm from "./pages/SupplierForm";
+// ... (imports commentés) ...
 
 // Import du CSS global (NÉCESSAIRE)
 import "./App.css";
 
-// Composant pour protéger les routes qui nécessitent une authentification
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth(); // Récupère l'état de l'utilisateur et du chargement depuis le contexte
+// Composant pour protéger les routes qui nécessitent une authentification et éventuellement un rôle spécifique
+const ProtectedRoute = ({ children, roles }) => { // Accepte une prop optionnelle 'roles' (tableau de strings)
+  const { user, loading } = useAuth(); // Récupère l'état de l'utilisateur et du chargement
 
-  // Affiche un indicateur pendant la vérification initiale de l'authentification
+  // Affiche un indicateur pendant la vérification initiale
   if (loading) {
     return <div className="loading" style={{ padding: '50px', textAlign: 'center' }}>Chargement...</div>;
   }
 
-  // Si le chargement est terminé et qu'il n'y a pas d'utilisateur, redirige vers la page de connexion
+  // Si pas d'utilisateur après chargement, redirige vers login
   if (!user) {
-    return <Navigate to="/login" replace />; // 'replace' évite d'ajouter /login à l'historique
+    return <Navigate to="/login" replace />;
   }
 
-  // Si l'utilisateur est connecté, affiche le composant enfant (la page protégée)
+  // Si des rôles sont spécifiés pour cette route, vérifier si l'utilisateur a au moins un des rôles requis
+  if (roles && roles.length > 0 && !roles.some(role => user.roles?.includes(role))) {
+     console.warn(`Accès refusé à ${user.email} pour route nécessitant rôles: ${roles.join(',')}`);
+     // Afficher un message d'accès refusé. Mieux vaut un composant dédié qu'une simple div.
+     // Pour l'exemple, on affiche un message simple.
+     return (
+        // Suppose que Layout gère la structure de base de la page
+        // <Layout>
+            <div className="error-message p-4 text-center font-bold text-red-600">
+                Accès Refusé: Vous ne disposez pas des permissions nécessaires pour accéder à cette page.
+            </div>
+       // </Layout>
+     );
+     // Alternative : return <Navigate to="/" replace />; // Rediriger vers la page d'accueil
+  }
+
+  // Si l'utilisateur est connecté et a les bons rôles (ou si aucun rôle spécifique n'est requis), affiche la page
   return children;
 };
+
 
 // Composant principal de l'application
 function App() {
   return (
-    // Fournisseur du contexte d'authentification pour toute l'application
+    // Fournisseur du contexte d'authentification
     <AuthProvider>
-      {/* Configure le routage côté client */}
+      {/* Gestionnaire de routage */}
       <Router>
-        {/* Conteneur pour toutes les définitions de routes */}
+        {/* Conteneur des routes */}
         <Routes>
-          {/* --- Routes Publiques --- */}
+          {/* --- Routes Publiques (accessibles sans connexion) --- */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* --- Routes Protégées (Nécessitent une connexion) --- */}
+          {/* --- Routes Protégées (nécessitent une connexion) --- */}
 
-          {/* Route Racine ('/') -> Affiche le Dashboard si connecté */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard /> {/* Page principale après connexion */}
-              </ProtectedRoute>
-            }
-          />
+          {/* Route Racine (Dashboard) - Tout utilisateur connecté */}
+          <Route path="/" element={ <ProtectedRoute><Dashboard /></ProtectedRoute> } />
 
-          {/* Route pour la liste des Annonces */}
-          <Route
-            path="/annonces" // URL pour voir la liste des annonces
-            element={
-              <ProtectedRoute>
-                <Annonces /> {/* Composant qui affichera la liste */}
-              </ProtectedRoute>
-            }
-          />
+          {/* Routes liées aux Annonces */}
+          <Route path="/annonces" element={ <ProtectedRoute><Annonces /></ProtectedRoute> } /> {/* Liste générale */}
+          <Route path="/annonces/detail/:id" element={ <ProtectedRoute><AnnonceDetail /></ProtectedRoute> } /> {/* Détail pour tous */}
+          <Route path="/annonces/new" element={ <ProtectedRoute roles={['Admin', 'Vendeur']}><AnnonceForm /></ProtectedRoute> } /> {/* Création Admin/Vendeur */}
+          <Route path="/annonces/:id" element={ <ProtectedRoute roles={['Admin', 'Vendeur']}><AnnonceForm /></ProtectedRoute> } /> {/* Modification Admin/Vendeur */}
 
-          {/* --- AJOUTÉ : Route pour voir les Détails d'une Annonce --- */}
-          {/* Doit être AVANT la route /annonces/:id pour éviter les conflits */}
+          {/* Routes Spécifiques Admin */}
           <Route
-            path="/annonces/detail/:id" // Nouvelle route spécifique
+            path="/recherche-annonces-vendeur"
+            element={ <ProtectedRoute roles={['Admin']}><AnnoncesVendeur /></ProtectedRoute> }
+          />
+          <Route
+            path="/recherche-visiteurs-annonce"
+            element={ <ProtectedRoute roles={['Admin']}><AnnonceVisiteurs /></ProtectedRoute> }
+          />
+           {/* --- AJOUTÉ : Route pour l'historique de visite d'un client (Admin) --- */}
+           <Route
+            path="/historique-visites-client" // URL fixe pour la page de recherche
             element={
-              <ProtectedRoute>
-                <AnnonceDetail /> {/* Pointe vers le composant de détails */}
+              <ProtectedRoute roles={['Admin']}> {/* Rôle Admin requis */}
+                <ClientAnnoncesVisitees />
               </ProtectedRoute>
             }
           />
-          {/* --- FIN AJOUT --- */}
-
-          {/* Route pour le formulaire Annonce (Création) */}
-          <Route
-            path="/annonces/new" // URL pour créer une nouvelle annonce
-            element={
-              <ProtectedRoute>
-                <AnnonceForm />
-              </ProtectedRoute>
-            }
-          />
-           {/* Route pour le formulaire Annonce (Modification) */}
-           {/* Cette route est utilisée pour l'édition via AnnonceForm */}
-          <Route
-            path="/annonces/:id"
-            element={
-              <ProtectedRoute>
-                <AnnonceForm />
-              </ProtectedRoute>
-            }
-          />
+           {/* --- FIN AJOUT --- */}
 
 
           {/* --- Routes de l'Ancien Projet (COMMENTÉES OU À SUPPRIMER) --- */}
-          {/*
-          <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-          // ... etc ...
-          */}
-          {/* --- Fin Routes Ancien Projet --- */}
+          {/* ... (routes commentées) ... */}
 
 
           {/* Route "Catch-all" pour les pages non trouvées */}

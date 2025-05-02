@@ -131,7 +131,7 @@ function Annonces() {
           <div className="search-container">
             <input
               type="text"
-              placeholder="Rechercher par nom, description, adresse, statut..."
+              placeholder="Rechercher par nom"
               className="search-input"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -224,9 +224,9 @@ function Annonces() {
                             )}
 
                             {/* Demander Suppression (Vendeur propriétaire uniquement) */}
-                            {user && user.id === annonce.vendeurId && !annonce.deletionRequested && (
+                             {user && user.id === annonce.vendeurId && !annonce.deletionRequested && (
                               <button
-                                className="btn-icon-only text-yellow-600 hover:text-yellow-800"
+                                className="btn-icon-only text-yellow-600 hover:text-yellow-800" // Style avertissement/demande
                                 title="Demander la suppression"
                                 onClick={() => handleRequestDelete(annonce.id)}
                               >

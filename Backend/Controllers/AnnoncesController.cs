@@ -112,7 +112,7 @@ namespace Projet1.Controllers
 
         // POST: api/annonces
         [HttpPost]
-        [Authorize(Roles = "Vendeur", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(Roles = "Admin,Vendeur", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<AnnonceReadDto>> CreateAnnonce([FromBody] AnnonceCreateDto annonceCreateDto)
         {
              if (!ModelState.IsValid) return BadRequest(ModelState);
