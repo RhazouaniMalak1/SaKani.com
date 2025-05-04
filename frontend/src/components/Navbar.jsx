@@ -11,6 +11,7 @@ import {
   FileText,       // Icône pour "Mes Annonces" (Vendeur)
   Search, 
   Trash2,
+  ArchiveX,        // Icône pour "Annonces A supprimer" (Admin
   FileWarning,        // Icône pour "Recherche Annonces Vendeur" (Admin)
   Eye,            // Icône pour "Recherche Visiteurs Annonce" (Admin)
   Clock,          // Icône pour "Historique Visites Client" (Admin)
@@ -110,6 +111,15 @@ function Navbar() {
                  <span>TaskDeletion</span> {/* Texte mis à jour */}
               </NavLink>
 
+                {/* Lien vers la page D'Archive des Annonces Supprimer*/}
+                <NavLink
+                 to="/admin/archives" // <<< URL de la page de gestion
+                 className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`}
+                 onClick={handleLinkClick}
+               >
+                 <ArchiveX size={iconSize} className="navbar-link-icon" /> {/* <<< Icône changée */}
+                 <span>Archive</span> {/* Texte mis à jour */}
+              </NavLink>
 
             </>
           )}

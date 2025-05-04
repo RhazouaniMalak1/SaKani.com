@@ -104,6 +104,9 @@ export const annonceService = {
   getPendingDeletion: () => api.get("/Annonces/pending-deletion"),       // GET .../pending-deletion
   // Lister les annonces d'un vendeur spécifique
   getByVendeur: (vendeurId) => api.get(`/Annonces/vendeur/${vendeurId}`), // GET .../vendeur/{vendeurId}
+
+   // --- AJOUT : Fonction pour récupérer les archives ---
+   getArchives: () => api.get("/Annonces/archives"),
 };
 
 // Service pour les consultations Annonce/Client

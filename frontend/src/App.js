@@ -25,7 +25,7 @@ import ClientAnnoncesVisitees from "./pages/ClientAnnoncesVisitees";
 // Page pour la page non trouvée
 import NotFound from "./pages/NotFound";
 import AdminPendingDeletions from "./pages/AdminPendingDeletions";
-
+import ArchivesAnnonces from "./pages/ArchivesAnnonces";
 
 
 
@@ -83,7 +83,7 @@ function App() {
           {/* --- Routes Protégées (nécessitent une connexion) --- */}
 
           {/* Route Racine (Dashboard) - Tout utilisateur connecté */}
-          <Route path="/" element={ <ProtectedRoute><Dashboard /></ProtectedRoute> } />
+          <Route path="/" element={ <ProtectedRoute><Annonces /></ProtectedRoute> } />
 
           {/* Routes liées aux Annonces */}
           <Route path="/annonces" element={ <ProtectedRoute><Annonces /></ProtectedRoute> } /> {/* Liste générale */}
@@ -121,7 +121,15 @@ function App() {
             }
           />
 
-
+    {/* --- AJOUTÉ : Route pour les archives (Admin) --- */}
+    <Route
+            path="/admin/archives" // URL spécifique Admin
+            element={
+              <ProtectedRoute roles={['Admin']}> {/* Rôle Admin requis */}
+                <ArchivesAnnonces />
+              </ProtectedRoute>
+            }
+          />
 
 
            

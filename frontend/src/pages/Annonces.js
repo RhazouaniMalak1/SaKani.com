@@ -197,8 +197,6 @@ function Annonces() {
                     </div>
                      {/* Pied de carte / Actions */}
                     <div className="annonce-card-actions">
-                        {/* Voir Détails */}
-                         <Link to={`/annonces/detail/${annonce.id}`} className="btn-icon-only text-blue-600" title="Voir les détails"><ViewIcon /></Link>
                         {/* Actions conditionnelles (Modifier, Demander Suppr, Supprimer) */}
                         <div className="ml-auto flex gap-1">
                             {user && (user.id === annonce.vendeurId || user.roles?.includes('Admin')) && (
