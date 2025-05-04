@@ -34,6 +34,10 @@ namespace Projet1.Models // Assurez-vous que le namespace est correct
         [JsonIgnore]
         public virtual ICollection<Annonce_Client> AnnoncesConsultees { get; set; } = new List<Annonce_Client>();
 
+
+
+      [JsonIgnore] // Important pour éviter les cycles lors de la sérialisation API
+        public virtual ICollection<ArchiveDesAnnoncesSupprime> AnnoncesArchiveesParAdmin { get; set; } = new List<ArchiveDesAnnoncesSupprime>();
         // Le mot-clé 'virtual' permet le Lazy Loading si activé.
         // Initialiser les collections évite les NullReferenceExceptions.
     }

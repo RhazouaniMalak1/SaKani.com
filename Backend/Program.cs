@@ -8,6 +8,10 @@ using Projet1.Models;     // Pour User
 using Projet1.Utilities;  // Pour JwtOptions (si vous l'utilisez pour la configuration)
 using System.Text;
 using System.Text.Json.Serialization;
+// Nécessaire pour Path.Combine et PhysicalFileProvider
+using Microsoft.Extensions.FileProviders;
+using System.IO;
+
 
 // --- BUILDER SETUP ---
 var builder = WebApplication.CreateBuilder(args);
@@ -216,6 +220,21 @@ using (var scope = app.Services.CreateScope())
         // Vous pourriez vouloir arrêter l'appli ici si les rôles sont critiques
     }
 }
+
+
+app.UseStaticFiles();
+
+// Servir les fichiers depuis le dossier Uploads sous l'URL /Uploads
+var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+if (!Directory.Exists(uploadPath)) // Crée le dossier s'il n'existe pas
+{
+    Directory.CreateDirectory(uploadPath);
+}
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadPath),
+    RequestPath = "/Uploads" // L'URL pour accéder aux fichiers sera http://.../Uploads/nom_fichier.jpg
+});
 
 // --- RUN APP ---
 app.Run();

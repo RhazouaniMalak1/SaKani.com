@@ -9,7 +9,9 @@ import {
   LayoutGrid,     // Nouvelle icône pour le Dashboard (plus approprié)
   List,           // Icône pour "Toutes les Annonces"
   FileText,       // Icône pour "Mes Annonces" (Vendeur)
-  Search,         // Icône pour "Recherche Annonces Vendeur" (Admin)
+  Search, 
+  Trash2,
+  FileWarning,        // Icône pour "Recherche Annonces Vendeur" (Admin)
   Eye,            // Icône pour "Recherche Visiteurs Annonce" (Admin)
   Clock,          // Icône pour "Historique Visites Client" (Admin)
   LogOut,         // Icône pour "Déconnexion"
@@ -97,6 +99,18 @@ function Navbar() {
                  <Clock size={iconSize} className="navbar-link-icon" /> {/* Icône Horloge */}
                  <span>Activity</span>
               </NavLink>
+
+                {/* Lien vers la page des Annonces A supprimer*/}
+                <NavLink
+                 to="/admin/pending-deletions" // <<< URL de la page de gestion
+                 className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`}
+                 onClick={handleLinkClick}
+               >
+                 <Trash2 size={iconSize} className="navbar-link-icon" /> {/* <<< Icône Corbeille */}
+                 <span>TaskDeletion</span> {/* Texte mis à jour */}
+              </NavLink>
+
+
             </>
           )}
 

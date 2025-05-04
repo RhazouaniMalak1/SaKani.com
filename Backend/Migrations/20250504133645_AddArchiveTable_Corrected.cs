@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Projet1.Data.Migrations
+namespace Projet1.Migrations
 {
     /// <inheritdoc />
-    public partial class Add : Migration
+    public partial class AddArchiveTable_Corrected : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -85,6 +85,8 @@ namespace Projet1.Data.Migrations
                     AdresseProduit = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     Statut = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Image = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Telephone = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DeletionRequested = table.Column<bool>(type: "bit", nullable: false),
                     VendeurId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     AdminId = table.Column<string>(type: "nvarchar(450)", nullable: true)
@@ -101,6 +103,36 @@ namespace Projet1.Data.Migrations
                     table.ForeignKey(
                         name: "FK_Annonces_AspNetUsers_VendeurId",
                         column: x => x.VendeurId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ArchivesAnnonces",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AnnonceId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    DateCreationAnnonce = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Prix = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    AdresseProduit = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    Statut = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Image = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Telephone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VendeurId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DateSuppression = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    AdminIdSuppresseur = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ArchivesAnnonces", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ArchivesAnnonces_AspNetUsers_AdminIdSuppresseur",
+                        column: x => x.AdminIdSuppresseur,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -227,9 +259,29 @@ namespace Projet1.Data.Migrations
                 column: "AdminId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Annonces_DeletionRequested",
+                table: "Annonces",
+                column: "DeletionRequested");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Annonces_VendeurId",
                 table: "Annonces",
                 column: "VendeurId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ArchivesAnnonces_AdminIdSuppresseur",
+                table: "ArchivesAnnonces",
+                column: "AdminIdSuppresseur");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ArchivesAnnonces_AnnonceId",
+                table: "ArchivesAnnonces",
+                column: "AnnonceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ArchivesAnnonces_DateSuppression",
+                table: "ArchivesAnnonces",
+                column: "DateSuppression");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -276,6 +328,9 @@ namespace Projet1.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AnnonceClients");
+
+            migrationBuilder.DropTable(
+                name: "ArchivesAnnonces");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");

@@ -23,6 +23,9 @@ namespace Projet1.Dtos
 
         public string? Description { get; set; }
 
+
+        public string? Telephone { get; set; } 
+
         // Note : VendeurId sera défini côté serveur à partir de l'utilisateur authentifié.
         // Note : AdminId est généralement défini par un autre processus ou pas à la création.
     }

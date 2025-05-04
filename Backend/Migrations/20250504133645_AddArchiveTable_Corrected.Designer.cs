@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Projet1.Data;
 
 #nullable disable
 
-namespace Projet1.Data.Migrations
+namespace Projet1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250504133645_AddArchiveTable_Corrected")]
+    partial class AddArchiveTable_Corrected
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -179,6 +182,9 @@ namespace Projet1.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Image")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -191,6 +197,9 @@ namespace Projet1.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Telephone")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("VendeurId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -198,6 +207,8 @@ namespace Projet1.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AdminId");
+
+                    b.HasIndex("DeletionRequested");
 
                     b.HasIndex("VendeurId");
 
@@ -220,6 +231,67 @@ namespace Projet1.Data.Migrations
                     b.HasIndex("AnnonceId");
 
                     b.ToTable("AnnonceClients");
+                });
+
+            modelBuilder.Entity("Projet1.Models.ArchiveDesAnnoncesSupprime", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminIdSuppresseur")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("AdresseProduit")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("AnnonceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateCreationAnnonce")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DateSuppression")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Image")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Prix")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<string>("Statut")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Telephone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("VendeurId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminIdSuppresseur");
+
+                    b.HasIndex("AnnonceId");
+
+                    b.HasIndex("DateSuppression");
+
+                    b.ToTable("ArchivesAnnonces");
                 });
 
             modelBuilder.Entity("Projet1.Models.User", b =>
@@ -381,6 +453,17 @@ namespace Projet1.Data.Migrations
                     b.Navigation("Client");
                 });
 
+            modelBuilder.Entity("Projet1.Models.ArchiveDesAnnoncesSupprime", b =>
+                {
+                    b.HasOne("Projet1.Models.User", "AdminSuppresseur")
+                        .WithMany("AnnoncesArchiveesParAdmin")
+                        .HasForeignKey("AdminIdSuppresseur")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AdminSuppresseur");
+                });
+
             modelBuilder.Entity("Projet1.Models.Annonce", b =>
                 {
                     b.Navigation("Consultations");
@@ -388,6 +471,8 @@ namespace Projet1.Data.Migrations
 
             modelBuilder.Entity("Projet1.Models.User", b =>
                 {
+                    b.Navigation("AnnoncesArchiveesParAdmin");
+
                     b.Navigation("AnnoncesConsultees");
 
                     b.Navigation("AnnoncesCrees");

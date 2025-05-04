@@ -81,9 +81,20 @@ export const authService = {
 export const annonceService = {
   getAll: () => api.get("/Annonces"),                   // GET /api/Annonces
   getById: (id) => api.get(`/Annonces/${id}`),          // GET /api/Annonces/{id}
-  create: (data) => api.post("/Annonces", data),        // POST /api/Annonces
-  update: (id, data) => api.put(`/Annonces/${id}`, data),// PUT /api/Annonces/{id}
-  // La suppression physique directe par l'Admin
+  create: (formData) => api.post("/Annonces", formData, {
+    // On dit à Axios de laisser le navigateur gérer le Content-Type pour FormData
+    headers: {
+      'Content-Type': undefined // ou null
+    }
+  }),
+
+  // --- MODIFIÉ ICI ---
+  update: (id, formData) => api.put(`/Annonces/${id}`, formData, {
+    // Idem pour la mise à jour
+    headers: {
+      'Content-Type': undefined // ou null
+    }
+  }),
   delete: (id) => api.delete(`/Annonces/${id}`),        // DELETE /api/Annonces/{id}
   // La demande de suppression par le Vendeur
   requestDeletion: (id) => api.patch(`/Annonces/${id}/request-deletion`), // PATCH .../request-deletion

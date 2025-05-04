@@ -1,7 +1,8 @@
-// --- Using Statements ---
+// Dans Data/ApplicationDbContext.cs
+
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // Pour IdentityDbContext
 using Microsoft.EntityFrameworkCore;                   // Pour DbContextOptions, ModelBuilder, DeleteBehavior
-using Projet1.Models;                                  // Pour accéder à User, Annonce, Annonce_Client
+using Projet1.Models;                                  // Pour accéder à User, Annonce, Annonce_Client, ArchiveDesAnnoncesSupprime
 
 namespace Projet1.Data // Assurez-vous que le namespace est correct
 {
@@ -9,11 +10,11 @@ namespace Projet1.Data // Assurez-vous que le namespace est correct
     public class ApplicationDbContext : IdentityDbContext<User> // Toujours hériter de IdentityDbContext<User>
     {
         // --- AJOUT DES DBSETS ---
-        // Ajoute une propriété DbSet pour chaque entité que EF Core doit gérer.
-        // '= null!;' est utilisé pour satisfaire les avertissements de nullabilité de C# 8+.
         public DbSet<Annonce> Annonces { get; set; } = null!;
         public DbSet<Annonce_Client> AnnonceClients { get; set; } = null!;
-        // --------------------------
+        // --- AJOUT DbSet Archive ---
+        public DbSet<ArchiveDesAnnoncesSupprime> ArchivesAnnonces { get; set; } = null!;
+        // --- FIN AJOUT ---
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -25,55 +26,75 @@ namespace Projet1.Data // Assurez-vous que le namespace est correct
             // TRES IMPORTANT : Appeler la méthode de base EN PREMIER pour configurer Identity
             base.OnModelCreating(builder);
 
-            // --- Configuration pour l'entité Annonce_Client (Table de liaison) ---
+            // --- Configuration pour l'entité Annonce_Client (Table de liaison - EXISTANTE) ---
+            builder.Entity<Annonce_Client>(entity =>
+            {
+                entity.HasKey(ac => new { ac.ClientId, ac.AnnonceId });
 
-            // 1. Définir la clé primaire composite
-            builder.Entity<Annonce_Client>()
-                .HasKey(ac => new { ac.ClientId, ac.AnnonceId }); // Clé composée des deux FK
+                entity.HasOne(ac => ac.Client)
+                      .WithMany(u => u.AnnoncesConsultees)
+                      .HasForeignKey(ac => ac.ClientId)
+                      .OnDelete(DeleteBehavior.Cascade); // Si le client est supprimé, ses consultations disparaissent
 
-            // 2. Configurer la relation plusieurs-à-plusieurs via Annonce_Client
+                entity.HasOne(ac => ac.Annonce)
+                      .WithMany(a => a.Consultations)
+                      .HasForeignKey(ac => ac.AnnonceId)
+                      .OnDelete(DeleteBehavior.Cascade); // Si l'annonce est supprimée (physiquement), ses consultations disparaissent
+            });
 
-            // Relation Annonce_Client vers User (Client)
-            builder.Entity<Annonce_Client>()
-                .HasOne(ac => ac.Client)                // Chaque Annonce_Client a un Client (User)
-                .WithMany(u => u.AnnoncesConsultees)   // Chaque User (Client) a plusieurs Annonce_Client
-                .HasForeignKey(ac => ac.ClientId)        // La clé étrangère dans Annonce_Client est ClientId
-                .OnDelete(DeleteBehavior.Cascade);       // Si un User (Client) est supprimé, supprimer ses enregistrements Annonce_Client
 
-            // Relation Annonce_Client vers Annonce
-            builder.Entity<Annonce_Client>()
-                .HasOne(ac => ac.Annonce)                // Chaque Annonce_Client a une Annonce
-                .WithMany(a => a.Consultations)       // Chaque Annonce a plusieurs Annonce_Client (Consultations)
-                .HasForeignKey(ac => ac.AnnonceId)       // La clé étrangère dans Annonce_Client est AnnonceId
-                .OnDelete(DeleteBehavior.Cascade);       // Si une Annonce est supprimée, supprimer ses enregistrements Annonce_Client
+            // --- Configuration pour l'entité Annonce (EXISTANTE) ---
+            builder.Entity<Annonce>(entity =>
+            {
+                entity.HasKey(a => a.Id); // Explicite bien que souvent automatique
 
-            // --- Configuration pour l'entité Annonce ---
+                // Relation vers Vendeur (User) - Requis
+                entity.HasOne(a => a.Vendeur)
+                      .WithMany(u => u.AnnoncesCrees) // La collection dans User
+                      .HasForeignKey(a => a.VendeurId) // La clé étrangère dans Annonce
+                      .IsRequired() // Rendre explicite que VendeurId ne peut pas être null
+                      .OnDelete(DeleteBehavior.Restrict); // Empêche de supprimer un Vendeur s'il a des Annonces actives
 
-            // 3. Configurer les relations un-à-plusieurs depuis Annonce vers User
+                // Relation vers Admin (User) - Optionnel (peut être null)
+                entity.HasOne(a => a.Admin)
+                      .WithMany(u => u.AnnoncesGerees) // La collection dans User
+                      .HasForeignKey(a => a.AdminId) // La clé étrangère dans Annonce
+                      .IsRequired(false) // Explicite que AdminId peut être null
+                      .OnDelete(DeleteBehavior.SetNull); // Si l'Admin est supprimé, mettre AdminId à null
 
-            // Relation Annonce vers User (Vendeur)
-            builder.Entity<Annonce>()
-                .HasOne(a => a.Vendeur)                 // Chaque Annonce a un Vendeur (User)
-                .WithMany(u => u.AnnoncesCrees)         // Chaque User (Vendeur) a plusieurs Annonces (créées)
-                .HasForeignKey(a => a.VendeurId)        // La clé étrangère dans Annonce est VendeurId
-                .OnDelete(DeleteBehavior.Restrict);     // Empêcher la suppression d'un User s'il a encore des annonces (sécurité)
-                                                        // Alternative : Cascade si la suppression user doit supprimer ses annonces
+                // Configuration du type de colonne pour le prix
+                entity.Property(a => a.Prix).HasColumnType("decimal(18, 2)");
 
-            // Relation Annonce vers User (Admin) - Relation optionnelle
-            builder.Entity<Annonce>()
-                .HasOne(a => a.Admin)                   // Chaque Annonce peut avoir un Admin (User)
-                .WithMany(u => u.AnnoncesGerees)       // Chaque User (Admin) peut gérer plusieurs Annonces
-                .HasForeignKey(a => a.AdminId)          // La clé étrangère dans Annonce est AdminId (nullable)
-                .OnDelete(DeleteBehavior.SetNull);      // Si l'Admin est supprimé, mettre AdminId à null dans les annonces qu'il gérait
-                                                        // Alternative : Restrict
+                 // Configuration pour DeletionRequested (si vous voulez un index)
+                 entity.HasIndex(a => a.DeletionRequested);
+            });
 
-            // 4. (Optionnel mais bonne pratique) Spécifier le type de colonne pour le prix
-            builder.Entity<Annonce>()
-                   .Property(a => a.Prix)
-                   .HasColumnType("decimal(18, 2)");
 
-            // --- Autres configurations spécifiques au modèle peuvent être ajoutées ici ---
-            // Par exemple, des index, des contraintes uniques, etc.
+            // --- AJOUT : Configuration pour l'entité ArchiveDesAnnoncesSupprime ---
+            builder.Entity<ArchiveDesAnnoncesSupprime>(entity =>
+            {
+                // Clé primaire simple (Id auto-généré)
+                entity.HasKey(e => e.Id);
+
+                // Assurer la cohérence du type de colonne Prix
+                entity.Property(e => e.Prix).HasColumnType("decimal(18, 2)");
+
+                // Relation vers l'Admin (User) qui a effectué la suppression - Requis
+                entity.HasOne(e => e.AdminSuppresseur) // La propriété de navigation dans Archive...
+                      .WithMany(u => u.AnnoncesArchiveesParAdmin) // La collection correspondante dans User
+                      .HasForeignKey(e => e.AdminIdSuppresseur) // La clé étrangère dans Archive...
+                      .IsRequired() // Un enregistrement d'archive DOIT avoir un admin suppresseur
+                      .OnDelete(DeleteBehavior.Restrict); // Empêche de supprimer un Admin s'il a archivé des annonces.
+                                                          // Alternative : SetNull si vous rendez AdminIdSuppresseur nullable (peu logique ici)
+                                                          // Alternative : Cascade si supprimer l'admin doit supprimer ses archives (dangereux)
+
+                // Index pour améliorer les performances des recherches sur les archives
+                entity.HasIndex(e => e.AnnonceId).IsUnique(false); // Index sur l'ID original (non unique car une annonce pourrait théoriquement être supprimée/recréée/resupprimée)
+                entity.HasIndex(e => e.AdminIdSuppresseur); // Index sur qui a supprimé
+                entity.HasIndex(e => e.DateSuppression); // Index sur quand ça a été supprimé
+            });
+            // --- FIN AJOUT ---
+
         }
     }
 }

@@ -24,9 +24,10 @@ import AnnonceVisiteurs from "./pages/AnnonceVisiteurs";
 import ClientAnnoncesVisitees from "./pages/ClientAnnoncesVisitees";
 // Page pour la page non trouvée
 import NotFound from "./pages/NotFound";
+import AdminPendingDeletions from "./pages/AdminPendingDeletions";
 
-// --- IMPORTS DES PAGES DE L'ANCIEN PROJET (GARDÉS COMMENTÉS OU À SUPPRIMER) ---
-// ... (imports commentés) ...
+
+
 
 // Import du CSS global (NÉCESSAIRE)
 import "./App.css";
@@ -107,12 +108,23 @@ function App() {
                 <ClientAnnoncesVisitees />
               </ProtectedRoute>
             }
+            
           />
-           {/* --- FIN AJOUT --- */}
+                    {/* --- AJOUTÉ : Route pour la gestion des suppressions en attente (Admin) --- */}
+
+                  <Route
+            path="/admin/pending-deletions" // URL spécifique Admin
+            element={
+              <ProtectedRoute roles={['Admin']}> {/* Rôle Admin requis */}
+                <AdminPendingDeletions />
+              </ProtectedRoute>
+            }
+          />
 
 
-          {/* --- Routes de l'Ancien Projet (COMMENTÉES OU À SUPPRIMER) --- */}
-          {/* ... (routes commentées) ... */}
+
+
+           
 
 
           {/* Route "Catch-all" pour les pages non trouvées */}

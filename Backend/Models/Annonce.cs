@@ -29,6 +29,11 @@ namespace Projet1.Models // Assurez-vous que le namespace est correct
         public string? Statut { get; set; } // Nullable (optionnel)
 
         public string? Description { get; set; } // Nullable (optionnel)
+
+        public string? Image { get; set; } 
+
+        public string? Telephone { get; set; } 
+          
          public bool DeletionRequested { get; set; } = false; // 'Pour le client' ====> ASupprimerOuNo
 
         // --- Clés Étrangères vers User ---

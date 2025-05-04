@@ -15,6 +15,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting; // <<< AJOUT pour IWebHostEnvironment
+using System.IO;  
 // --- Fin Using Statements ---
 
 namespace Projet1.Controllers
@@ -25,11 +27,14 @@ namespace Projet1.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public AnnoncesController(ApplicationDbContext context, UserManager<User> userManager)
+        public AnnoncesController(ApplicationDbContext context, UserManager<User> userManager,
+         IWebHostEnvironment hostingEnvironment)
         {
             _context = context;
             _userManager = userManager;
+             _hostingEnvironment = hostingEnvironment; // Stocker l'environnement
         }
 
         // GET: api/annonces
@@ -51,6 +56,8 @@ namespace Projet1.Controllers
                     AdresseProduit = a.AdresseProduit,
                     Statut = a.Statut,
                     Description = a.Description,
+                    Image = a.Image,
+                    Telephone = a.Telephone,
                     VendeurId = a.VendeurId,
                     AdminId = a.AdminId,
                     DeletionRequested = a.DeletionRequested // MAPPING DeletionRequested
@@ -100,6 +107,8 @@ namespace Projet1.Controllers
                 AdresseProduit = annonce.AdresseProduit,
                 Statut = annonce.Statut,
                 Description = annonce.Description,
+                Image = annonce.Image,
+                Telephone = annonce.Telephone,
                 VendeurId = annonce.VendeurId,
                 AdminId = annonce.AdminId,
                 DeletionRequested = annonce.DeletionRequested // MAPPING DeletionRequested
@@ -111,70 +120,227 @@ namespace Projet1.Controllers
         }
 
         // POST: api/annonces
-        [HttpPost]
-        [Authorize(Roles = "Admin,Vendeur", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<ActionResult<AnnonceReadDto>> CreateAnnonce([FromBody] AnnonceCreateDto annonceCreateDto)
+        [HttpPost("")] 
+       [Authorize(Roles = "Admin,Vendeur", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<AnnonceReadDto>> CreateAnnonce([FromForm] AnnonceCreateDto annonceCreateDto, IFormFile? imageFile)
+        //                                                               ^^^^^^^^^^                      ^^^^^^^^^
         {
+             // La validation ModelState fonctionne toujours avec [FromForm] pour les DTOs
              if (!ModelState.IsValid) return BadRequest(ModelState);
+
              var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
              if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = "Impossible d'identifier l'utilisateur." });
 
+             string? uniqueFileName = null; // Variable pour stocker le nom de fichier unique
+
+             // --- Logique d'upload de l'image ---
+             if (imageFile != null && imageFile.Length > 0)
+             {
+                 // 1. Définir le chemin du dossier de sauvegarde
+                 string uploadsFolder = Path.Combine(_hostingEnvironment.ContentRootPath, "Uploads", "Annonces");
+                 // S'assurer que le dossier existe
+                 Directory.CreateDirectory(uploadsFolder);
+
+                 // 2. Générer un nom de fichier unique pour éviter les conflits
+                 uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
+                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                 // 3. Copier le fichier uploadé vers le serveur
+                 try
+                 {
+                     using (var fileStream = new FileStream(filePath, FileMode.Create))
+                     {
+                         await imageFile.CopyToAsync(fileStream);
+                     }
+                 }
+                 catch (Exception ex)
+                 {
+                     // Gérer les erreurs d'écriture de fichier
+                     Console.Error.WriteLine($"Erreur sauvegarde image: {ex.Message}");
+                     // Retourner une erreur ou continuer sans image ? Pour l'instant, on continue sans.
+                     uniqueFileName = null; // Assurer que le nom n'est pas sauvegardé si l'upload échoue
+                     ModelState.AddModelError("imageFile", "Erreur lors de la sauvegarde de l'image.");
+                     // Retourner BadRequest ici si l'image est absolument requise
+                     // return BadRequest(ModelState);
+                 }
+             }
+             // --- Fin logique d'upload ---
+
+             // --- Création de l'entité Annonce ---
              var annonce = new Annonce
              {
-                 Name = annonceCreateDto.Name, Prix = annonceCreateDto.Prix, AdresseProduit = annonceCreateDto.AdresseProduit, Statut = annonceCreateDto.Statut, Description = annonceCreateDto.Description, DateCreation = DateTime.UtcNow, VendeurId = userId
-                 // Pas besoin de IsDeleted ou DeletionRequested ici (valeurs par défaut false)
+                 Name = annonceCreateDto.Name,
+                 Prix = annonceCreateDto.Prix,
+                 AdresseProduit = annonceCreateDto.AdresseProduit,
+                 Statut = annonceCreateDto.Statut,
+                 Description = annonceCreateDto.Description,
+                 // --- MODIFIÉ : Sauvegarder le nom du fichier (ou null) ---
+                 Image = uniqueFileName, // Stocke le nom unique ou null si pas d'upload/erreur
+                 Telephone = annonceCreateDto.Telephone,
+                 DateCreation = DateTime.UtcNow,
+                 VendeurId = userId,
+                 DeletionRequested = false // Valeur par défaut
              };
-             _context.Annonces.Add(annonce);
-             await _context.SaveChangesAsync();
 
+             _context.Annonces.Add(annonce);
+             await _context.SaveChangesAsync(); // Sauvegarder l'annonce dans la DB
+
+             // --- Mapping vers DTO de retour ---
              var annonceReadDto = new AnnonceReadDto
              {
-                  Id = annonce.Id, Name = annonce.Name, DateCreation = annonce.DateCreation, Prix = annonce.Prix, AdresseProduit = annonce.AdresseProduit, Statut = annonce.Statut, Description = annonce.Description, VendeurId = annonce.VendeurId, AdminId = annonce.AdminId,
-                  DeletionRequested = annonce.DeletionRequested // Mapper la valeur par défaut (false)
-                  // IsDeleted non mappé car supprimé
+                  Id = annonce.Id, Name = annonce.Name, DateCreation = annonce.DateCreation, Prix = annonce.Prix,
+                  AdresseProduit = annonce.AdresseProduit, Statut = annonce.Statut, Description = annonce.Description,
+                  // --- MODIFIÉ : Retourner le nom du fichier stocké ---
+                  Image = annonce.Image, // Retourne le nom du fichier ou null
+                  Telephone = annonce.Telephone, VendeurId = annonce.VendeurId, AdminId = annonce.AdminId,
+                  DeletionRequested = annonce.DeletionRequested
              };
+
+             // Retourner 201 Created avec l'annonce créée (DTO)
              return CreatedAtAction(nameof(GetAnnonce), new { id = annonceReadDto.Id }, annonceReadDto);
         }
 
-        // PUT: api/annonces/{id}
+
+        // --- PUT: api/annonces/{id} (MODIFIÉ pour gérer l'upload) ---
         [HttpPut("{id}")]
+        // --- MODIFIÉ : Utilisation de [FromForm] ---
         [Authorize(Roles = "Admin,Vendeur", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> UpdateAnnonce(int id, [FromBody] AnnonceUpdateDto annonceUpdateDto)
+        public async Task<IActionResult> UpdateAnnonce(int id, [FromForm] AnnonceUpdateDto annonceUpdateDto, IFormFile? imageFile)
+        //                                                       ^^^^^^^^^^                                    ^^^^^^^^^
         {
              if (!ModelState.IsValid) return BadRequest(ModelState);
-             var annonce = await _context.Annonces.FindAsync(id);
+
+             // Récupérer l'annonce existante (Find n'est pas idéal si on modifie, AsTracking est mieux)
+             var annonce = await _context.Annonces.FirstOrDefaultAsync(a => a.Id == id);
              if (annonce == null) return NotFound(new { Message = $"Annonce avec l'ID {id} non trouvée." });
 
+             // Vérification des permissions
              var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
              var isAdmin = User.IsInRole("Admin");
-
              if (!isAdmin && annonce.VendeurId != currentUserId) return Forbid();
 
+             string? imagePathToSave = annonce.Image; // Garde l'ancien nom par défaut
+             string? oldImagePath = annonce.Image;    // Pour supprimer l'ancien fichier si remplacé
+
+             // --- Logique d'upload si une NOUVELLE image est fournie ---
+             if (imageFile != null && imageFile.Length > 0)
+             {
+                 string uploadsFolder = Path.Combine(_hostingEnvironment.ContentRootPath, "Uploads", "Annonces");
+                 Directory.CreateDirectory(uploadsFolder);
+                 string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imageFile.FileName);
+                 string newFilePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                 try
+                 {
+                     using (var fileStream = new FileStream(newFilePath, FileMode.Create))
+                     {
+                         await imageFile.CopyToAsync(fileStream);
+                     }
+                     imagePathToSave = uniqueFileName; // Mettre à jour avec le nouveau nom
+
+                     // Supprimer l'ancien fichier s'il existait et si le nouveau est sauvegardé
+                     if (!string.IsNullOrEmpty(oldImagePath))
+                     {
+                         string fullOldPath = Path.Combine(uploadsFolder, oldImagePath);
+                         if (System.IO.File.Exists(fullOldPath))
+                         {
+                              try { System.IO.File.Delete(fullOldPath); }
+                              catch(Exception ex) { Console.Error.WriteLine($"Erreur suppression ancienne image {oldImagePath}: {ex.Message}"); }
+                         }
+                     }
+                 }
+                 catch (Exception ex)
+                 {
+                     Console.Error.WriteLine($"Erreur sauvegarde nouvelle image: {ex.Message}");
+                     ModelState.AddModelError("imageFile", "Erreur lors de la sauvegarde de la nouvelle image.");
+                     // Ne pas bloquer la mise à jour des autres champs si l'upload échoue ?
+                     // Ou return BadRequest(ModelState); si l'image est critique
+                     imagePathToSave = oldImagePath; // Garder l'ancien chemin si upload échoue
+                 }
+             }
+             // --- Fin logique d'upload ---
+
+             // --- Mise à jour des propriétés de l'entité ---
              annonce.Name = annonceUpdateDto.Name;
              annonce.Prix = annonceUpdateDto.Prix;
              annonce.AdresseProduit = annonceUpdateDto.AdresseProduit;
              annonce.Statut = annonceUpdateDto.Statut;
              annonce.Description = annonceUpdateDto.Description;
-             // Ne pas modifier DeletionRequested ici
+             annonce.Telephone = annonceUpdateDto.Telephone;
+             // --- MODIFIÉ : Mettre à jour le chemin de l'image ---
+             annonce.Image = imagePathToSave; // Nouveau nom ou ancien nom si pas de nouvel upload/erreur
 
+             // Mettre à jour AdminId si c'est un admin qui modifie
              if (isAdmin) { annonce.AdminId = currentUserId; }
 
-             _context.Entry(annonce).State = EntityState.Modified;
-             try { await _context.SaveChangesAsync(); }
-             catch (DbUpdateConcurrencyException) { if (!_context.Annonces.Any(e => e.Id == id)) return NotFound(); else throw; }
-             return NoContent();
+             // Indiquer que l'entité a été modifiée (pas strictement nécessaire si récupérée avec tracking)
+             // _context.Entry(annonce).State = EntityState.Modified;
+
+             try
+             {
+                 await _context.SaveChangesAsync(); // Sauvegarder les modifications
+             }
+             catch (DbUpdateConcurrencyException) { /* ... gestion concurrence ... */ throw; }
+             catch (DbUpdateException ex) { /* ... autre erreur DB ... */ throw; }
+
+             return NoContent(); // Standard pour PUT réussi
         }
 
-        // DELETE: api/annonces/{id} (Suppression physique standard par Admin)
+     /// <summary>
+        /// Archive une annonce (sans certains champs) puis la supprime physiquement.
+        /// Réservé aux Admins.
+        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> DeleteAnnonce(int id)
         {
             var annonce = await _context.Annonces.FindAsync(id);
-            if (annonce == null) return NotFound(new { Message = $"Annonce avec l'ID {id} non trouvée." });
+            if (annonce == null)
+            {
+                return NotFound(new { Message = $"Annonce avec l'ID {id} non trouvée." });
+            }
 
-            _context.Annonces.Remove(annonce); // Suppression physique directe
-            await _context.SaveChangesAsync();
+            var adminSuppresseurId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(adminSuppresseurId))
+            {
+                 return Unauthorized(new { Message = "Impossible d'identifier l'administrateur."});
+            }
+
+            // --- Création de l'archive (MODIFIÉE) ---
+            var archiveRecord = new ArchiveDesAnnoncesSupprime
+            {
+                // Copier les données essentielles
+                AnnonceId = annonce.Id,
+                Name = annonce.Name,
+                DateCreationAnnonce = annonce.DateCreation,
+                Prix = annonce.Prix,
+                AdresseProduit = annonce.AdresseProduit,
+                Statut = annonce.Statut,
+                Description = annonce.Description,
+                Image = annonce.Image,
+                Telephone = annonce.Telephone,
+                VendeurId = annonce.VendeurId,
+                // PAS de DeletionRequestedAnnonce
+                // PAS de AdminIdOriginal
+
+                // Ajouter les métadonnées d'archivage
+                DateSuppression = DateTime.UtcNow,
+                AdminIdSuppresseur = adminSuppresseurId
+            };
+            // --- Fin Création archive ---
+
+            _context.ArchivesAnnonces.Add(archiveRecord);
+            _context.Annonces.Remove(annonce);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                Console.Error.WriteLine($"ERREUR lors de l'archivage/suppression Annonce {id}: {ex.InnerException?.Message ?? ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erreur serveur lors de la suppression de l'annonce." });
+            }
 
             return NoContent();
         }
@@ -212,6 +378,8 @@ namespace Projet1.Controllers
                         AdresseProduit = a.AdresseProduit,
                         Statut = a.Statut,
                         Description = a.Description,
+                        Image = a.Image,
+                        Telephone = a.Telephone,
                         VendeurId = a.VendeurId,
                         AdminId = a.AdminId,
                         DeletionRequested = a.DeletionRequested // MAPPING DeletionRequested
@@ -245,6 +413,8 @@ namespace Projet1.Controllers
                     AdresseProduit = a.AdresseProduit,
                     Statut = a.Statut,
                     Description = a.Description,
+                    Image = a.Image,
+                    Telephone = a.Telephone,
                     VendeurId = a.VendeurId,
                     AdminId = a.AdminId,
                     DeletionRequested = a.DeletionRequested // MAPPING DeletionRequested
@@ -321,6 +491,8 @@ namespace Projet1.Controllers
                     AdresseProduit = a.AdresseProduit,
                     Statut = a.Statut,
                     Description = a.Description,
+                    Image = a.Image,
+                    Telephone = a.Telephone,
                     VendeurId = a.VendeurId,
                     AdminId = a.AdminId,
                     DeletionRequested = a.DeletionRequested // Sera true ici
@@ -329,6 +501,42 @@ namespace Projet1.Controllers
                 .ToListAsync();
 
             return Ok(annoncesEnAttente);
+        }
+
+
+
+
+
+         [HttpGet("archives")] // Nouvelle route pour les archives
+        [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<IEnumerable<AnnonceArchiveeReadDto>>> GetArchives()
+        {
+            var archives = await _context.ArchivesAnnonces
+                .Include(a => a.AdminSuppresseur) // Charger les infos de l'admin qui a supprimé
+                .OrderByDescending(a => a.DateSuppression) // Trier par date de suppression (plus récent en premier)
+                .Select(a => new AnnonceArchiveeReadDto // <<< MAPPER VERS LE DTO ICI >>>
+                {
+                    Id = a.Id, // ID de l'archive
+                    AnnonceId = a.AnnonceId, // ID de l'annonce originale
+                    Name = a.Name,
+                    DateCreationAnnonce = a.DateCreationAnnonce,
+                    Prix = a.Prix,
+                    AdresseProduit = a.AdresseProduit,
+                    Statut = a.Statut,
+                    Description = a.Description, // Peut être long, optionnel de l'inclure dans la liste
+                    Image = a.Image,
+                    Telephone = a.Telephone,
+                    VendeurId = a.VendeurId,
+                    DateSuppression = a.DateSuppression,
+                    AdminIdSuppresseur = a.AdminIdSuppresseur,
+                    // Concaténer nom/prénom de l'admin ou utiliser username
+                    AdminSuppresseurNom = a.AdminSuppresseur != null
+                                            ? $"{a.AdminSuppresseur.Prenom} {a.AdminSuppresseur.Nom}".Trim() // Concatène Nom/Prénom
+                                            : a.AdminIdSuppresseur // Fallback sur l'ID si l'objet User n'est pas chargé ou null
+                })
+                .ToListAsync();
+
+            return Ok(archives); // <<< RETOURNER LA LISTE DES DTOs >>>
         }
 
     } 

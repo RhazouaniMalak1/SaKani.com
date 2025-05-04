@@ -1,15 +1,12 @@
 // Dans pages/Annonces.js
 
-import React, { useState, useEffect } from "react"; // Ajout de React pour JSX
-import { Link } from "react-router-dom"; // Pour les liens vers les détails/création
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Layout from "../components/Layout"; // Assurez-vous que le chemin est correct
-// Import du service Annonce
 import { annonceService } from "../services/api"; // Assurez-vous que le chemin est correct
 import { useAuth } from "../contexts/AuthContext"; // Import pour vérifier l'utilisateur connecté
 
-// --- Icônes SVG ---
-// Icône générique pour une annonce (optionnelle ici)
-// const AnnonceIcon = () => ( /* ... */ );
+// --- Icônes SVG (depuis lucide-react ou définitions directes) ---
 // Icône pour Voir les détails
 const ViewIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -38,6 +35,7 @@ function Annonces() {
       setLoading(true);
       setError(null);
       const response = await annonceService.getAll();
+      console.log("Données Annonces reçues:", response.data); // Log pour vérifier
       setAnnonces(response.data);
     } catch (err) {
       setError("Erreur lors du chargement des annonces");
@@ -75,8 +73,7 @@ function Annonces() {
   const handleDelete = async (id, nomAnnonce) => {
     if (window.confirm(`Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT l'annonce "${nomAnnonce}" ? Cette action est irréversible.`)) {
       try {
-        await annonceService.delete(id); // Appel au service API standard de suppression
-        // Met à jour l'état en retirant l'annonce supprimée
+        await annonceService.delete(id);
         setAnnonces(prevAnnonces => prevAnnonces.filter(a => a.id !== id));
         alert(`Annonce "${nomAnnonce}" supprimée définitivement.`);
       } catch (err) {
@@ -93,15 +90,17 @@ function Annonces() {
       annonce.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (annonce.description && annonce.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (annonce.adresseProduit && annonce.adresseProduit.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (annonce.statut && annonce.statut.toLowerCase().includes(searchTerm.toLowerCase()))
+      (annonce.statut && annonce.statut.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (annonce.telephone && annonce.telephone.includes(searchTerm)) // Filtre sur téléphone
   );
 
   // Style des badges de statut
   const getStatusBadgeClass = (status) => {
-    switch (status?.toLowerCase()) {
+    const statusClean = status?.trim().toLowerCase() || '';
+    switch (statusClean) {
       case "neuf": return "badge badge-success";
-      case "deuxieme main": return "badge badge-info";
       case "bonne occasion": return "badge badge-warning";
+      case "deuxieme main": return "badge badge-info";
       default: return "badge";
     }
   };
@@ -131,7 +130,7 @@ function Annonces() {
           <div className="search-container">
             <input
               type="text"
-              placeholder="Rechercher par nom"
+              placeholder="Rechercher (nom, desc, adresse, statut, tel...)" // Placeholder mis à jour
               className="search-input"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -153,12 +152,14 @@ function Annonces() {
               <table className="table">
                 <thead>
                   <tr>
+                    {/* --- Entêtes de colonnes MIS À JOUR --- */}
                     <th>Nom</th>
                     <th className="hidden md:table-cell">Description</th>
                     <th className="hidden sm:table-cell">Prix</th>
                     <th className="hidden lg:table-cell">Adresse</th>
                     <th className="hidden xl:table-cell">Statut</th>
-                    <th className="hidden xl:table-cell">Crée le</th>
+                    <th className="hidden xl:table-cell">Image</th> {/* Nom/Chemin */}
+                    <th className="hidden md:table-cell">Téléphone</th>
                     <th>Demandé Suppr.?</th>
                     <th>Actions</th>
                   </tr>
@@ -167,83 +168,45 @@ function Annonces() {
                   {filteredAnnonces.length > 0 ? (
                     filteredAnnonces.map((annonce) => (
                       <tr key={annonce.id}>
-                        {/* Colonnes de données */}
+                        {/* Colonne Nom */}
                         <td className="font-bold">
-                           {/* Le nom pointe toujours vers le détail/modif si autorisé */}
-                           {user && (user.id === annonce.vendeurId || user.roles?.includes('Admin')) ? (
-                             <Link to={`/annonces/${annonce.id}`} title={`Modifier/Voir détails : ${annonce.name}`}>
-                               {annonce.name.length > 25 ? `${annonce.name.substring(0, 25)}...` : annonce.name}
-                             </Link>
-                           ) : (
-                             // Sinon, lien vers la page de détail simple
-                             <Link to={`/annonces/detail/${annonce.id}`} title={`Voir détails : ${annonce.name}`}>
-                               {annonce.name.length > 25 ? `${annonce.name.substring(0, 25)}...` : annonce.name}
-                             </Link>
-                           )}
+                           {user && (user.id === annonce.vendeurId || user.roles?.includes('Admin')) ? ( <Link to={`/annonces/${annonce.id}`} title={`Modifier : ${annonce.name}`}>{annonce.name}</Link>)
+                           : (<Link to={`/annonces/detail/${annonce.id}`} title={`Voir : ${annonce.name}`}>{annonce.name}</Link>)}
                         </td>
-                        <td className="hidden md:table-cell text-muted">
-                          {annonce.description && annonce.description.length > 40
-                            ? `${annonce.description.substring(0, 40)}...`
-                            : annonce.description || "-"}
-                        </td>
-                        <td className="hidden sm:table-cell text-muted">
-                            {annonce.prix.toLocaleString('fr-FR', { style: 'currency', currency: 'MAD' })}
-                        </td>
+                        {/* Colonne Description */}
+                        <td className="hidden md:table-cell text-muted">{annonce.description?.substring(0, 40) + (annonce.description?.length > 40 ? '...' : '') || "-"}</td>
+                        {/* Colonne Prix */}
+                        <td className="hidden sm:table-cell text-muted">{annonce.prix.toLocaleString('fr-FR', { style: 'currency', currency: 'MAD' })}</td>
+                        {/* Colonne Adresse */}
                         <td className="hidden lg:table-cell text-muted">{annonce.adresseProduit || "-"}</td>
-                        <td className="hidden xl:table-cell">
-                          {annonce.statut && <span className={getStatusBadgeClass(annonce.statut)}>{annonce.statut}</span>}
-                        </td>
-                        <td className="hidden xl:table-cell text-muted">{new Date(annonce.dateCreation).toLocaleDateString()}</td>
-                        <td>
-                          {annonce.deletionRequested ? (
-                             <span className="badge badge-warning" title="Demande de suppression en attente">Demandé</span>
-                           ) : (
-                             <span className="text-muted">Non</span>
-                           )}
+                         {/* Colonne Statut */}
+                        <td className="hidden xl:table-cell">{annonce.statut && <span className={getStatusBadgeClass(annonce.statut)}>{annonce.statut}</span>}</td>
+
+                        {/* --- MODIFIÉ : Cellule Image (affiche le texte stocké) --- */}
+                        <td className="hidden xl:table-cell text-muted text-xs">
+                            {annonce.image ? (
+                                <span title={annonce.image}>
+                                    {/* Affiche le chemin/nom tronqué. */}
+                                    {/* Pour afficher l'image, il faut une logique différente (voir explications précédentes) */}
+                                    {annonce.image.length > 20 ? annonce.image.substring(0, 17) + '...' : annonce.image}
+                                </span>
+                             ) : "-"}
                          </td>
-                         {/* Colonne Actions */}
+                         {/* --- FIN MODIFICATION Image --- */}
+
+                         {/* --- MODIFIÉ : Cellule Téléphone --- */}
+                         <td className="hidden md:table-cell text-muted">{annonce.telephone || "-"}</td>
+                         {/* --- FIN MODIFICATION Téléphone --- */}
+
+                        {/* Colonne Demande Suppression */}
+                        <td>{annonce.deletionRequested ? <span className="badge badge-warning">Demandé</span> : <span className="text-muted">Non</span>}</td>
+                        {/* Colonne Actions */}
                         <td>
                           <div className="action-buttons">
-                             {/* --- AJOUT : Bouton Voir Détails --- */}
-                             {user && ( // Afficher pour tous les utilisateurs connectés
-                                <Link
-                                  to={`/annonces/detail/${annonce.id}`} // Pointe vers la route de détails
-                                  className="btn-icon-only text-blue-600 hover:text-blue-800" // Style pour voir
-                                  title="Voir les détails"
-                                >
-                                  <ViewIcon />
-                                </Link>
-                             )}
-                             {/* --- FIN AJOUT --- */}
-
-                            {/* Modifier (Admin ou Vendeur propriétaire) */}
-                            {user && (user.id === annonce.vendeurId || user.roles?.includes('Admin')) && (
-                               <Link to={`/annonces/${annonce.id}`} className="btn-icon-only text-gray-600 hover:text-gray-900" title="Modifier">
-                                  <EditIcon />
-                                </Link>
-                            )}
-
-                            {/* Demander Suppression (Vendeur propriétaire uniquement) */}
-                             {user && user.id === annonce.vendeurId && !annonce.deletionRequested && (
-                              <button
-                                className="btn-icon-only text-yellow-600 hover:text-yellow-800" // Style avertissement/demande
-                                title="Demander la suppression"
-                                onClick={() => handleRequestDelete(annonce.id)}
-                              >
-                                <RequestDeleteIcon />
-                              </button>
-                            )}
-
-                            {/* Supprimer Définitivement (Admin uniquement) */}
-                            {user && user.roles?.includes('Admin') && (
-                              <button
-                                className="btn-icon-only text-red-600 hover:text-red-800"
-                                title="Supprimer définitivement"
-                                onClick={() => handleDelete(annonce.id, annonce.name)}
-                              >
-                                <DeleteIcon />
-                              </button>
-                            )}
+                             {user && (<Link to={`/annonces/detail/${annonce.id}`} className="btn-icon-only text-blue-600" title="Voir les détails"><ViewIcon /></Link>)}
+                            {user && (user.id === annonce.vendeurId || user.roles?.includes('Admin')) && (<Link to={`/annonces/${annonce.id}`} className="btn-icon-only text-gray-600" title="Modifier"><EditIcon /></Link>)}
+                            {user && user.id === annonce.vendeurId && !user.roles?.includes('Admin') && !annonce.deletionRequested && (<button onClick={() => handleRequestDelete(annonce.id)} className="btn-icon-only text-yellow-600" title="Demander la suppression"><RequestDeleteIcon /></button>)}
+                            {user && user.roles?.includes('Admin') && (<button onClick={() => handleDelete(annonce.id, annonce.name)} className="btn-icon-only text-red-600" title="Supprimer définitivement"><DeleteIcon /></button>)}
                           </div>
                         </td>
                       </tr>
@@ -251,7 +214,8 @@ function Annonces() {
                   ) : (
                     // Message si aucune annonce
                     <tr>
-                      <td colSpan="8" className="text-center py-4 text-muted">
+                       {/* --- MODIFIÉ : colSpan à 9 --- */}
+                      <td colSpan="9" className="text-center py-4 text-muted">
                         {annonces.length === 0 ? "Aucune annonce à afficher." : "Aucune annonce ne correspond à votre recherche."}
                       </td>
                     </tr>

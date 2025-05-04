@@ -12,6 +12,8 @@ namespace Projet1.Dtos
         public string? AdresseProduit { get; set; }
         public string? Statut { get; set; }
         public string? Description { get; set; }
+        public string? Image { get; set; } 
+        public string? Telephone { get; set; } 
         public string VendeurId { get; set; } = string.Empty; // ID du créateur
         public string? AdminId { get; set; } // ID de l'admin gestionnaire (optionnel)
         public bool DeletionRequested { get; set; }// 'Pour le client' ====> ASupprimerOuNo

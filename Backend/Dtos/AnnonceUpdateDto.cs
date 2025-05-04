@@ -23,6 +23,9 @@ namespace Projet1.Dtos
 
         public string? Description { get; set; }
 
+
+        public string? Telephone { get; set; } 
+
         // Note : On ne permet généralement pas de changer VendeurId.
         // Note : La modification de AdminId pourrait être une action séparée pour un admin.
     }

@@ -147,6 +147,8 @@ namespace Projet1.Controllers
                     AdresseProduit = a.AdresseProduit,
                     Statut = a.Statut,
                     Description = a.Description,
+                    Image = a.Image,
+                    Telephone = a.Telephone,
                     VendeurId = a.VendeurId,
                     AdminId = a.AdminId,
                     DeletionRequested = a.DeletionRequested
