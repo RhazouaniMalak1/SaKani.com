@@ -1,11 +1,26 @@
 // src/pages/AnnonceDetail.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Ajout de useMemo
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout'; // Adapter le chemin si nécessaire
 import { annonceService } from '../services/api'; // Adapter le chemin si nécessaire
 import { useAuth } from '../contexts/AuthContext'; // Import pour vérifier l'utilisateur connecté
 import ChatWindow from '../components/ChatWindow'; // <<< IMPORTER LE COMPOSANT CHAT
+
+// --- Import des composants Leaflet pour React et CSS ---
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css'; // Assurez-vous que le CSS Leaflet est importé globalement OU ici
+// --- Correction pour les icônes par défaut de Leaflet si elles n'apparaissent pas ---
+// Cette correction est souvent nécessaire selon votre configuration de build (par ex. Webpack)
+import L from 'leaflet';
+// @ts-ignore - Ignore TypeScript error if using TypeScript
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+    iconUrl: require('leaflet/dist/images/marker-icon.png'),
+    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+// --- Fin correction icônes ---
 
 // --- Icônes (intégrées directement) ---
 
@@ -102,6 +117,41 @@ const handleImageError = (event) => {
 };
 // --- Fin Fonctions Helper ---
 
+// --- Fonction de Géocodage (Adresse -> Coordonnées) ---
+const geocodeAddress = async (address) => {
+  if (!address) return null;
+  // Utilisation de l'API Nominatim d'OpenStreetMap (politique d'utilisation à respecter)
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+  try {
+    const response = await fetch(url, {
+       headers: {
+         // Important: Remplacer 'YourAppName/1.0 (your-email@example.com)' par les informations de votre application
+         // C'est requis par la politique d'utilisation de Nominatim
+         'User-Agent': 'MonSiteAnnonces/1.0 (contact@monsite.com)',
+         'Accept-Language': 'fr' // Préférer les résultats en français si pertinent
+       }
+    });
+    if (!response.ok) {
+        console.error(`Erreur HTTP lors du géocodage: statut ${response.status}`);
+        return null;
+    }
+    const data = await response.json();
+    if (data && data.length > 0) {
+      // On prend le premier résultat
+      const { lat, lon } = data[0];
+      return { lat: parseFloat(lat), lng: parseFloat(lon) };
+    } else {
+      console.warn(`Géocodage échoué pour l'adresse: "${address}". Aucun résultat trouvé.`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Erreur lors de l'appel de géocodage pour "${address}":`, error);
+    return null;
+  }
+};
+// --- Fin Fonction Géocodage ---
+
+
 function AnnonceDetail() {
   const { id } = useParams(); // Récupère l'ID de l'annonce depuis l'URL
   const navigate = useNavigate(); // Hook pour la navigation programmatique
@@ -111,6 +161,12 @@ function AnnonceDetail() {
   const [loading, setLoading] = useState(true); // État pour indiquer le chargement
   const [error, setError] = useState(null); // État pour stocker les erreurs
   const [isChatOpen, setIsChatOpen] = useState(false); // État pour contrôler la visibilité de la fenêtre de chat
+
+  // --- Nouveaux états pour la carte ---
+  const [annonceLocation, setAnnonceLocation] = useState(null); // Coordonnées {lat, lng}
+  const [geocodingError, setGeocodingError] = useState(null); // Erreur de géocodage
+  // --- Fin nouveaux états ---
+
 
   // Effet pour charger les détails de l'annonce au montage ou si l'ID change
   useEffect(() => {
@@ -124,17 +180,21 @@ function AnnonceDetail() {
       setLoading(true);
       setError(null); // Réinitialiser l'erreur précédente
       setIsChatOpen(false); // Fermer le chat si on navigue vers une nouvelle annonce
+      setAnnonceLocation(null); // Réinitialiser la localisation
+      setGeocodingError(null); // Réinitialiser l'erreur de géocodage
+
       try {
         const response = await annonceService.getById(id);
         console.log("[AnnonceDetail] Détails de l'annonce reçus:", response.data);
         setAnnonce(response.data); // Mettre à jour l'état avec les données reçues
+
       } catch (err) {
         console.error("[AnnonceDetail] Erreur lors du chargement des détails:", err.response || err.message || err);
         if (err.response?.status === 404) {
             setError(`L'annonce avec l'ID ${id} n'a pas été trouvée.`);
         } else if (err.response?.status === 401) {
             setError("Vous n'êtes pas autorisé à voir cette annonce. Veuillez vous reconnecter.");
-            // La redirection vers login est gérée par l'intercepteur Axios
+            // La redirection vers login est gérée par l'intercepteur Axios si configuré
         } else {
             setError("Une erreur s'est produite lors du chargement de l'annonce.");
         }
@@ -147,19 +207,52 @@ function AnnonceDetail() {
     fetchAnnonceDetail();
   }, [id]); // Dépendance: recharger si l'ID dans l'URL change
 
+  // --- Effet pour Géocoder l'adresse après le chargement de l'annonce ---
+   useEffect(() => {
+        if (annonce && annonce.adresseProduit) {
+            console.log(`[AnnonceDetail] Géocodage de l'adresse: "${annonce.adresseProduit}"`);
+            geocodeAddress(annonce.adresseProduit)
+                .then(location => {
+                    if (location) {
+                        console.log("[AnnonceDetail] Géocodage réussi:", location);
+                        setAnnonceLocation(location);
+                        setGeocodingError(null); // Effacer l'erreur s'il y en avait une
+                    } else {
+                        console.warn("[AnnonceDetail] Géocodage n'a pas trouvé de résultat ou a échoué.");
+                        setAnnonceLocation(null); // S'assurer que la localisation est null
+                        setGeocodingError("Impossible de localiser l'adresse sur la carte.");
+                    }
+                })
+                .catch(err => {
+                    console.error("[AnnonceDetail] Erreur lors du géocodage (promesse rejetée):", err);
+                    setAnnonceLocation(null); // S'assurer que la localisation est null
+                    setGeocodingError("Erreur lors de la géolocalisation de l'adresse."); // Message d'erreur plus générique pour l'utilisateur
+                });
+        } else if (annonce && !annonce.adresseProduit) {
+            console.log("[AnnonceDetail] Aucune adresse produit spécifiée pour cette annonce.");
+            setAnnonceLocation(null); // Assurez-vous qu'il n'y a pas de localisation résiduelle
+            setGeocodingError("L'adresse de l'article n'est pas spécifiée pour la carte."); // Informer l'utilisateur
+        }
+        // Ne rien faire si annonce est null (page en cours de chargement ou erreur principale)
+   }, [annonce]); // Cet effet s'exécute lorsque 'annonce' change (et est chargé)
+  // --- Fin Effet Géocodage ---
+
+
   // --- Fonctions pour gérer l'ouverture/fermeture de la fenêtre de chat ---
   const openChat = () => {
       // 1. Vérifier si l'annonce et ses détails (vendeurId) sont chargés
       if (!annonce || !annonce.vendeurId) {
           console.error("[AnnonceDetail] Impossible d'ouvrir le chat : données annonce incomplètes.");
-          alert("Impossible de contacter le vendeur pour le moment.");
+          alert("Impossible de contacter le vendeur pour le moment. Les informations de l'annonce ne sont pas complètes.");
           return;
       }
       // 2. Vérifier si l'utilisateur est connecté
       if (!user) {
           console.log("[AnnonceDetail] Utilisateur non connecté. Redirection vers login.");
           // Rediriger vers login, en passant l'URL actuelle pour revenir après connexion
-          navigate('/login', { state: { from: window.location.pathname, message: 'Connectez-vous pour pouvoir contacter le vendeur.' } });
+          // Utilisation de useMemo pour générer l'URL de retour
+          const currentPath = window.location.pathname + window.location.search;
+          navigate('/login', { state: { from: currentPath, message: 'Connectez-vous pour pouvoir contacter le vendeur.' } });
           return;
       }
       // 3. Vérifier si l'utilisateur essaie de chatter avec lui-même
@@ -169,7 +262,7 @@ function AnnonceDetail() {
           return;
       }
       // 4. Si tout est bon, ouvrir le chat
-      console.log(`[AnnonceDetail] Ouverture du chat avec le vendeur ${annonce.vendeurId}`);
+      console.log(`[AnnonceDetail] Ouverture du chat avec le vendeur ID: ${annonce.vendeurId}`);
       setIsChatOpen(true); // Met à jour l'état pour afficher la fenêtre ChatWindow
   };
 
@@ -197,13 +290,16 @@ function AnnonceDetail() {
       <Layout>
         <div className="header">
           <h1 className="page-title">Erreur</h1>
-           <Link to="/annonces" className="btn btn-secondary">Retour à la liste des annonces</Link>
+           <Link to="/annonces" className="btn btn-secondary flex items-center">
+             <ArrowLeftIcon /> <span className="ml-1">Retour à la liste</span>
+           </Link>
         </div>
         <div className="card">
             <div className="card-content error-message text-center py-10 px-4">
                 <AlertTriangleIcon /> {/* Utilisation de l'icône d'alerte */}
                 <p className="text-red-600 font-semibold mt-2">{error}</p>
-                <p className="text-sm text-gray-500 mt-1">Veuillez réessayer plus tard ou retourner à la liste des annonces.</p>
+                {/* Le message 'Veuillez vous reconnecter' est ajouté par l'intercepteur Axios si 401 */}
+                {!error.includes('autorisé') && (<p className="text-sm text-gray-500 mt-1">Veuillez réessayer plus tard ou retourner à la liste des annonces.</p>)}
             </div>
         </div>
       </Layout>
@@ -211,12 +307,14 @@ function AnnonceDetail() {
   }
 
    if (!annonce) {
-     // Ce cas peut arriver si loading est false mais annonce est toujours null (par ex. erreur silencieuse)
+     // Ce cas peut arriver si loading est false mais annonce est toujours null (par ex. erreur silencieuse non gérée)
      return (
       <Layout>
         <div className="header">
           <h1 className="page-title">Annonce Introuvable</h1>
-           <Link to="/annonces" className="btn btn-secondary">Retour à la liste</Link>
+           <Link to="/annonces" className="btn btn-secondary flex items-center">
+             <ArrowLeftIcon /> <span className="ml-1">Retour à la liste</span>
+           </Link>
         </div>
          <div className="card">
             <div className="card-content text-center py-10 text-gray-500">
@@ -232,6 +330,7 @@ function AnnonceDetail() {
   const isOwner = user && user.id === annonce.vendeurId;
   // Construire l'URL complète de l'image (si disponible)
   const imageUrl = annonce.image ? `${IMAGE_BASE_URL}${IMAGE_FOLDER_PATH}${annonce.image}` : null;
+
 
   // Rendu principal des détails de l'annonce
   return (
@@ -319,12 +418,66 @@ function AnnonceDetail() {
                     <strong className="text-gray-600 flex items-center text-sm mb-1">
                         <PhoneIcon />Contact Vendeur :
                     </strong>
+                    {/* Utiliser un simple span si l'utilisateur n'est pas propriétaire pour éviter de divulguer le numéro */}
+                    {/* Ou laisser le lien tel quel si la politique le permet */}
+                    {/* Pour plus de confidentialité, le numéro ne devrait pas être affiché directement publiquement */}
                     <a href={`tel:${annonce.telephone}`} className="text-gray-800 hover:text-primary hover:underline ml-1 break-all">
                         {annonce.telephone}
                     </a>
                 </div>
            )}
           </div>
+
+           {/* --- Section Carte (Map) --- */}
+           {/* Condition pour afficher cette section : soit on a une localisation, soit on a une erreur de géocodage, soit l'adresse est absente */}
+           {(annonceLocation || geocodingError || (annonce && !annonce.adresseProduit)) && (
+                 <div className="pt-4 border-t border-gray-200">
+                     <strong className="block text-lg text-gray-800 mb-3">Lieu sur la carte :</strong>
+
+                     {/* Afficher le message d'erreur de géocodage */}
+                     {geocodingError && (
+                         <div className="error-message text-center py-3 text-sm">
+                             <AlertTriangleIcon width="1em" height="1em" className="inline mr-1"/> {geocodingError}
+                         </div>
+                     )}
+
+                     {/* Afficher la carte si la localisation est disponible */}
+                     {annonceLocation ? (
+                          <div className="annonce-map-container" style={{ height: '400px', width: '100%' }}> {/* Hauteur fixe pour la carte */}
+                              <MapContainer
+                                center={annonceLocation} // Centre la carte sur la localisation de l'annonce
+                                zoom={15} // Zoom level (15 est un bon début pour une ville)
+                                scrollWheelZoom={false} // Désactive le zoom par molette (peut être gênant dans un layout)
+                                style={{ height: '100%', width: '100%', borderRadius: 'var(--border-radius)' }} // Style pour remplir le conteneur
+                                key={annonceLocation.lat + annonceLocation.lng} // Ajoute une clé pour forcer le re-render si la position change (rare)
+                              >
+                                  <TileLayer
+                                      attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // Utilise les tuiles OpenStreetMap
+                                  />
+                                  <Marker position={annonceLocation}> {/* Place un marqueur à la localisation */}
+                                      <Popup>
+                                          {/* Contenu de la popup quand on clique sur le marqueur */}
+                                          <strong>{annonce.name}</strong><br />
+                                          {annonce.adresseProduit}
+                                      </Popup>
+                                  </Marker>
+                              </MapContainer>
+                          </div>
+                     ) : (
+                         // Message si l'adresse existe mais n'a pas pu être localisée (et pas d'erreur spécifique)
+                         annonce && annonce.adresseProduit && !geocodingError && (
+                              <div className="text-sm text-gray-500 italic text-center py-4 bg-gray-50 rounded">
+                                   Tentative de localisation en cours...
+                              </div>
+                         )
+                          // Le cas où annonceLocation est null ET geocodingError est null ET annonce.adresseProduit est null
+                          // est géré par le message "L'adresse n'est pas spécifiée" via geocodingError plus haut.
+                     )}
+                 </div>
+             )}
+           {/* --- Fin Section Carte --- */}
+
 
           {/* Description */}
            {annonce.description && (
@@ -340,7 +493,7 @@ function AnnonceDetail() {
            {/* Alerte si une demande de suppression est en cours */}
            {annonce.deletionRequested && (
               <div className="p-4 bg-yellow-50 border border-yellow-300 rounded text-yellow-800 mt-5 flex items-center gap-3 text-sm">
-                <AlertTriangleIcon /> {/* Utilisation de l'icône d'alerte */}
+                <AlertTriangleIcon width="1em" height="1em" className="inline mr-1"/> {/* Utilisation de l'icône d'alerte */}
                 <span>Une demande de suppression a été faite pour cette annonce et est en attente de validation par un administrateur.</span>
               </div>
            )}
@@ -349,7 +502,7 @@ function AnnonceDetail() {
            {/* Logique d'affichage du bouton :
                - Si l'utilisateur N'EST PAS connecté -> Bouton "Connectez-vous pour contacter" (mène à la page login)
                - Si l'utilisateur EST connecté ET N'EST PAS le propriétaire -> Bouton "Contacter le Vendeur" (ouvre le chat)
-               - Si l'utilisateur EST connecté ET EST le propriétaire -> Pas de bouton de contact
+               - Si l'utilisateur EST connecté ET EST le propriétaire -> Pas de bouton de contact (ou message)
            */}
            <div className="mt-8 pt-6 border-t border-gray-200 text-center md:text-left">
                 {!user ? (
@@ -383,10 +536,12 @@ function AnnonceDetail() {
 
        {/* === Fenêtre de Chat (rendue conditionnellement ICI, à l'extérieur de la card) === */}
        {/* La CSS de ChatWindow gère son positionnement fixe */}
+       {/* S'assurer que annonce, annonce.vendeurId et user existent avant d'ouvrir le chat */}
        {isChatOpen && annonce && annonce.vendeurId && user && (
            <ChatWindow
              recipientId={annonce.vendeurId} // Le vendeur est le destinataire du message
              // Essayer d'obtenir un nom d'utilisateur si l'API le fournit, sinon fallback
+             // Assurez-vous que le champ 'vendeur' est peuplé et contient 'userName' si vous utilisez ceci
              recipientName={annonce.vendeur?.userName || `Vendeur #${annonce.vendeurId.substring(0, 6)}`}
              annonceId={annonce.id} // ID de l'annonce concernée
              annonceName={annonce.name} // Nom de l'annonce pour référence

@@ -79,6 +79,8 @@ function Login() {
     <div className="login-container">
       {/* Section image optionnelle */}
       <div className="login-image">
+      <img src="asset/ggg.png" alt="Login Illustration" />
+
       </div>
 
       <div className="card login-card">
