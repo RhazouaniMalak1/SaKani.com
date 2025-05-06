@@ -26,6 +26,7 @@ import ClientAnnoncesVisitees from "./pages/ClientAnnoncesVisitees";
 import NotFound from "./pages/NotFound";
 import AdminPendingDeletions from "./pages/AdminPendingDeletions";
 import ArchivesAnnonces from "./pages/ArchivesAnnonces";
+import MessagesPage from './pages/MessagesPage'; // N'oubliez pas l'import
 
 
 
@@ -129,9 +130,22 @@ function App() {
                 <ArchivesAnnonces />
               </ProtectedRoute>
             }
+
+
+
+
+
+            
           />
 
-
+<Route
+    path="/messages"
+    element={
+        <ProtectedRoute> {/* Accessible à tous les utilisateurs connectés */}
+            <MessagesPage />
+        </ProtectedRoute>
+    }
+/>
            
 
 
@@ -140,6 +154,12 @@ function App() {
 
         </Routes>
       </Router>
+
+
+
+
+
+      
     </AuthProvider>
   );
 }

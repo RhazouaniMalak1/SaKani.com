@@ -1,154 +1,127 @@
-// Dans src/components/Navbar.jsx (ou où vous l'avez placé)
+// Dans src/components/Navbar.jsx
 
-import React, { useState } from 'react'; // Ajout de useState pour le menu mobile
-import { NavLink, Link, useNavigate } from "react-router-dom"; // Ajout de Link et useNavigate
+import React, { useState } from 'react';
+import { NavLink, Link, useNavigate } from "react-router-dom";
+// --- MODIFIÉ : Importer useAuth pour accéder à l'état des messages non lus ---
 import { useAuth } from "../contexts/AuthContext"; // Adapter le chemin si nécessaire
 
-// Importation des icônes spécifiques depuis lucide-react (ou votre bibliothèque d'icônes)
+// Importation des icônes
 import {
-  LayoutGrid,     // Nouvelle icône pour le Dashboard (plus approprié)
-  List,           // Icône pour "Toutes les Annonces"
-  FileText,       // Icône pour "Mes Annonces" (Vendeur)
-  Search, 
+  // LayoutGrid, // Icone non utilisée (selon warning précédent)
+  List,
+  // FileText, // Icone non utilisée (selon warning précédent)
+  Search,
   Trash2,
-  ArchiveX,        // Icône pour "Annonces A supprimer" (Admin
-  FileWarning,        // Icône pour "Recherche Annonces Vendeur" (Admin)
-  Eye,            // Icône pour "Recherche Visiteurs Annonce" (Admin)
-  Clock,          // Icône pour "Historique Visites Client" (Admin)
-  LogOut,         // Icône pour "Déconnexion"
-  Menu,           // Icône pour le menu mobile (burger)
-  X,              // Icône pour fermer le menu mobile
-  User            // Icône pour le profil/compte utilisateur
+  ArchiveX,
+  // FileWarning, // Icone non utilisée (selon warning précédent)
+  Eye,
+  Clock,
+  LogOut,
+  Menu,
+  X,
+  User,
+  // --- AJOUT : Icône pour les messages ---
+  MessageSquare // Ou Mail, Bell, etc.
 } from 'lucide-react';
 
 function Navbar() {
-  const { user, logout } = useAuth(); // Récupère l'utilisateur et la fonction logout
-  const navigate = useNavigate();     // Hook pour la redirection après logout
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // État pour l'ouverture/fermeture du menu mobile
+  // --- MODIFIÉ : Récupérer user, logout ET unreadMessages ---
+  const { user, logout, unreadMessages } = useAuth(); // Récupère aussi unreadMessages
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Fonction pour gérer la déconnexion
   const handleLogout = () => {
-    logout(); // Appelle la fonction du contexte
-    navigate('/login'); // Redirige vers la page de connexion
-    setIsMobileMenuOpen(false); // Ferme le menu mobile si ouvert
+    logout();
+    navigate('/login');
+    setIsMobileMenuOpen(false);
   };
 
-  // Fonction pour ouvrir/fermer le menu mobile
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Fonction pour fermer le menu mobile lors d'un clic sur un lien
   const handleLinkClick = () => {
-     // Ferme le menu seulement si on est en mode mobile (vérification optionnelle basée sur la visibilité du bouton burger)
-     // Ou plus simplement, toujours fermer si la fonction est appelée
      setIsMobileMenuOpen(false);
   }
 
-  // Taille par défaut pour les icônes dans la navbar
-  const iconSize = 18; // Légèrement plus petit pour une navbar
+  const iconSize = 18;
+
+  // --- AJOUT : Calculer s'il y a des messages non lus ---
+  // Utilise Object.values pour obtenir les compteurs, puis reduce pour les additionner
+  // Le `|| {}` gère le cas où unreadMessages pourrait être null/undefined au début
+  const totalUnreadCount = Object.values(unreadMessages || {}).reduce((sum, count) => sum + count, 0);
+  const hasUnread = totalUnreadCount > 0;
+  // --- FIN AJOUT ---
 
   return (
-    // Utilise la balise <nav> sémantique avec la classe 'navbar' pour le styling
+    // La <nav> reste le composant racine ici
     <nav className="navbar">
-      {/* Conteneur pour limiter la largeur et centrer sur grand écran */}
       <div className="navbar-container">
 
-        {/* Logo ou Titre de l'application, agit comme un lien vers l'accueil (Dashboard) */}
         <Link to="/" className="navbar-logo" onClick={handleLinkClick}>
-          SaKani.com {/* Remplacez par votre logo si vous en avez un */}
+          SaKani.com
         </Link>
 
-        {/* Bouton pour afficher/cacher le menu sur les écrans mobiles */}
         <button className="navbar-mobile-toggle" onClick={toggleMobileMenu} aria-label="Basculer la navigation">
-          {/* Affiche l'icône X si le menu est ouvert, sinon l'icône Menu (burger) */}
           {isMobileMenuOpen ? <X size={iconSize + 4} /> : <Menu size={iconSize + 4} />}
         </button>
 
-        {/* Conteneur des liens de navigation */}
-        {/* La classe 'open' est ajoutée dynamiquement pour l'affichage mobile */}
         <div className={`navbar-links ${isMobileMenuOpen ? "open" : ""}`}>
 
-          {/* --- Liens de Navigation Principaux (visibles par tous les connectés) --- */}
-
-         
-
-          {/* Lien vers la liste de toutes les Annonces */}
+          {/* Lien Annonces */}
           <NavLink to="/annonces" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}>
              <List size={iconSize} className="navbar-link-icon" />
              <span>Annonces</span>
           </NavLink>
 
-         
-          
+          {/* --- AJOUT : Lien vers une page de Messages (si vous en créez une) --- */}
+          {/* Ce lien est conditionnel à l'utilisateur connecté */}
+          {user && (
+            <NavLink
+              // TODO: Définir la route vers votre page/composant de messagerie/conversations
+              to="/messages" // Exemple d'URL - ASSUREZ-VOUS QUE CETTE ROUTE EXISTE DANS App.js
+              className={({ isActive }) => `navbar-link relative ${isActive ? "active" : ""}`} // Ajout de 'relative' pour positionner le badge
+              onClick={handleLinkClick}
+              title="Messages" // Info-bulle
+            >
+              <MessageSquare size={iconSize} className="navbar-link-icon" />
+              <span>Messages</span>
+              {/* Afficher le badge SEULEMENT s'il y a des messages non lus */}
+              {hasUnread && (
+                <span className="message-unread-badge">
+                  {/* Afficher le nombre total ou juste un point, limiter l'affichage si trop grand */}
+                  {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                  {/* Ou juste : <span className="message-unread-dot"></span> */}
+                </span>
+              )}
+            </NavLink>
+          )}
+          {/* --- FIN AJOUT --- */}
+
 
           {/* --- Liens Spécifiques au Rôle Admin --- */}
           {user && user.roles?.includes('Admin') && (
             <> {/* Utilisation d'un fragment pour grouper les liens Admin */}
-              {/* Lien vers la page de recherche d'annonces par vendeur */}
-              <NavLink to="/recherche-annonces-vendeur" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}>
-                 <Search size={iconSize} className="navbar-link-icon" /> {/* Icône Recherche */}
-                 <span>Seller's Ads</span>
-              </NavLink>
-              {/* Lien vers la page de recherche des visiteurs d'une annonce */}
-              <NavLink to="/recherche-visiteurs-annonce" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}>
-                 <Eye size={iconSize} className="navbar-link-icon" /> {/* Icône Oeil */}
-                 <span>Suivi</span>
-              </NavLink>
-              {/* Lien vers la page de l'historique des visites d'un client */}
-              <NavLink to="/historique-visites-client" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}>
-                 <Clock size={iconSize} className="navbar-link-icon" /> {/* Icône Horloge */}
-                 <span>Activity</span>
-              </NavLink>
-
-                {/* Lien vers la page des Annonces A supprimer*/}
-                <NavLink
-                 to="/admin/pending-deletions" // <<< URL de la page de gestion
-                 className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`}
-                 onClick={handleLinkClick}
-               >
-                 <Trash2 size={iconSize} className="navbar-link-icon" /> {/* <<< Icône Corbeille */}
-                 <span>TaskDeletion</span> {/* Texte mis à jour */}
-              </NavLink>
-
-                {/* Lien vers la page D'Archive des Annonces Supprimer*/}
-                <NavLink
-                 to="/admin/archives" // <<< URL de la page de gestion
-                 className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`}
-                 onClick={handleLinkClick}
-               >
-                 <ArchiveX size={iconSize} className="navbar-link-icon" /> {/* <<< Icône changée */}
-                 <span>Archive</span> {/* Texte mis à jour */}
-              </NavLink>
-
+              <NavLink to="/recherche-annonces-vendeur" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}> <Search size={iconSize} className="navbar-link-icon" /> <span>Seller's Ads</span> </NavLink>
+              <NavLink to="/recherche-visiteurs-annonce" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}> <Eye size={iconSize} className="navbar-link-icon" /> <span>Suivi</span> </NavLink>
+              <NavLink to="/historique-visites-client" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}> <Clock size={iconSize} className="navbar-link-icon" /> <span>Activity</span> </NavLink>
+              <NavLink to="/admin/pending-deletions" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}> <Trash2 size={iconSize} className="navbar-link-icon" /> <span>TaskDeletion</span> </NavLink>
+              <NavLink to="/admin/archives" className={({ isActive }) => `navbar-link ${isActive ? "active" : ""}`} onClick={handleLinkClick}> <ArchiveX size={iconSize} className="navbar-link-icon" /> <span>Archive</span> </NavLink>
             </>
           )}
 
-          {/* --- Section Utilisateur et Déconnexion (alignée à droite sur Desktop) --- */}
+          {/* --- Section Utilisateur et Déconnexion --- */}
           <div className="navbar-user-section">
-             {/* Vérifie si l'utilisateur est connecté */}
              {user ? (
                 <>
-                    {/* Affiche le prénom ou l'email de l'utilisateur */}
-                    <span className="navbar-user-greeting" title={user.email}>
-                        <User size={iconSize - 2} className="navbar-link-icon" />
-                        {user.prenom || user.userName} {/* Affiche Prénom si disponible, sinon userName */}
-                    </span>
-                    {/* Bouton de Déconnexion */}
-                    <button className="navbar-link logout-button" onClick={handleLogout} title="Se déconnecter">
-                        <LogOut size={iconSize} className="navbar-link-icon" />
-                        <span className="hidden md:inline">Déconnexion</span> {/* Texte visible sur écrans moyens et plus */}
-                    </button>
+                    <span className="navbar-user-greeting" title={user.email}> <User size={iconSize - 2} className="navbar-link-icon" /> {user.prenom || user.userName} </span>
+                    <button className="navbar-link logout-button" onClick={handleLogout} title="Se déconnecter"> <LogOut size={iconSize} className="navbar-link-icon" /> <span className="hidden md:inline">Déconnexion</span> </button>
                 </>
-             ) : (
-                 /* Optionnellement, afficher un lien de connexion si non connecté
-                    (normalement géré par la redirection via ProtectedRoute) */
-                 null // Ou <NavLink to="/login" ... >Connexion</NavLink>
-             )}
+             ) : ( null )}
           </div>
-        </div>
-      </div>
-    </nav>
+        </div> {/* Fin de navbar-links */}
+      </div> {/* Fin de navbar-container */}
+    </nav> /* Fin de la nav */
   );
 }
 

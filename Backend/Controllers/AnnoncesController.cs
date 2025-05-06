@@ -72,30 +72,51 @@ namespace Projet1.Controllers
         /// <summary>
         /// Récupère une annonce spécifique par son ID.
         /// </summary>
-        [HttpGet("{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+     [HttpGet("{id}")]
         public async Task<ActionResult<AnnonceReadDto>> GetAnnonce(int id)
         {
             // 1. Récupérer l'annonce
             var annonce = await _context.Annonces
-                // .Where(a => !a.IsDeleted) // <<< FILTRE SUPPRIMÉ
                 .FirstOrDefaultAsync(a => a.Id == id);
 
             if (annonce == null)
             {
-                // Message simplifié car plus d'état "supprimé logiquement"
                 return NotFound(new { Message = $"Annonce avec l'ID {id} non trouvée." });
             }
 
-            // ... (logique d'enregistrement de consultation) ...
+            // --- CORRECTION : Logique d'enregistrement de consultation ---
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (!string.IsNullOrEmpty(userId) && User.IsInRole("Client"))
             {
-                 var nouvelleConsultation = new Annonce_Client { ClientId = userId, AnnonceId = annonce.Id, DateConsultation = DateTime.UtcNow };
-                 _context.AnnonceClients.Add(nouvelleConsultation);
-                 try { await _context.SaveChangesAsync(); } catch (DbUpdateException ex) { Console.Error.WriteLine($"ERREUR Consultation: {ex.Message}"); }
-            }
+                 try
+                 {
+                    // Vérifier si ce client a DEJA consulté CETTE annonce
+                    // Note: Utilise le nom du DbSet ici (_context.AnnonceClients)
+                    bool dejaConsulte = await _context.AnnonceClients
+                                                .AnyAsync(ac => ac.ClientId == userId && ac.AnnonceId == id);
 
+                    if (!dejaConsulte)
+                    {
+                        // *** Utilisez le nom EXACT de votre classe modèle ici ***
+                        var nouvelleConsultation = new Annonce_Client // <-- HYPOTHÈSE : Votre modèle s'appelle Annonce_Client
+                        {
+                            ClientId = userId,
+                            AnnonceId = annonce.Id,
+                            DateConsultation = DateTime.UtcNow
+                        };
+                        // *** Utilisez le nom EXACT de votre DbSet ici ***
+                        _context.AnnonceClients.Add(nouvelleConsultation); // <-- HYPOTHÈSE : Votre DbSet s'appelle AnnonceClients
+                        await _context.SaveChangesAsync();
+                        Console.WriteLine($"[Consultation Enregistrée] Client: {userId}, Annonce: {id}");
+                    }
+                 }
+                 catch (Exception ex)
+                 {
+                     Console.Error.WriteLine($"[ERREUR Enregistrement Consultation] Client: {userId}, Annonce: {id}. Erreur: {ex.Message}");
+                 }
+            }
+            // --- FIN CORRECTION ---
 
             // 3. Mapper l'annonce vers le DTO de lecture
             var annonceDto = new AnnonceReadDto
@@ -111,8 +132,7 @@ namespace Projet1.Controllers
                 Telephone = annonce.Telephone,
                 VendeurId = annonce.VendeurId,
                 AdminId = annonce.AdminId,
-                DeletionRequested = annonce.DeletionRequested // MAPPING DeletionRequested
-                // IsDeleted = annonce.IsDeleted // <<< MAPPING SUPPRIMÉ
+                DeletionRequested = annonce.DeletionRequested
             };
 
             // 4. Retourner le DTO

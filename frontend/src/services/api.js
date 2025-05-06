@@ -1,3 +1,4 @@
+// Dans src/services/api.js
 import axios from "axios";
 
 // Création de l'instance Axios (NÉCESSAIRE)
@@ -5,7 +6,7 @@ export const api = axios.create({
   // Définit l'URL de base de votre API backend.
   // Utilise une variable d'environnement si définie, sinon localhost:5049 par défaut.
   // Assurez-vous que le port 5049 correspond bien à celui de votre backend en cours d'exécution.
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5049/api",
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5049/api", // <<< VOTRE URL API BASE
   headers: {
     "Content-Type": "application/json", // Définit le type de contenu par défaut pour les requêtes POST/PUT
   },
@@ -19,10 +20,10 @@ api.interceptors.request.use(
     const token = localStorage.getItem("token");
     // Si un token existe, l'ajoute à l'en-tête 'Authorization' de la requête.
     if (token) {
-      // console.log('Token ajouté à la requête:', `Bearer ${token.substring(0, 10)}...`); // Pour débogage
+      // console.log('[Interceptor Request] Token ajouté à la requête.'); // Décommenter pour debug
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      // console.log('Aucun token trouvé pour cette requête.'); // Pour débogage
+      // console.log('[Interceptor Request] Aucun token trouvé pour cette requête.'); // Décommenter pour debug
     }
     // Retourne la configuration de la requête (modifiée ou non).
     return config;
@@ -43,21 +44,20 @@ api.interceptors.response.use(
   },
   (error) => {
     // Si une erreur de réponse survient...
-    console.error("Erreur interceptée dans la réponse API:", error.response || error.message || error);
+    console.error("Erreur interceptée dans la réponse API:", error.response ? `Status ${error.response.status}` : error.message || error);
     // Vérifie si l'erreur est une réponse 401 (Non autorisé - token invalide/expiré).
     if (error.response && error.response.status === 401) {
-      console.warn("Erreur 401 détectée ! Déconnexion et redirection vers /login.");
+      console.warn("Erreur 401 détectée (Token invalide/expiré) ! Déconnexion et redirection vers /login.");
       // Supprime le token et les infos utilisateur du localStorage.
       localStorage.removeItem("token");
       localStorage.removeItem("user"); // Si vous stockez aussi des infos utilisateur
       // Supprimer l'en-tête par défaut pour éviter de le réutiliser
       delete api.defaults.headers.common["Authorization"];
       // Redirige l'utilisateur vers la page de connexion en rechargeant la page
-      // C'est simple mais peut être amélioré avec une gestion d'état/navigation React
+      // Cela assure un nettoyage complet de l'état de l'application.
       if (window.location.pathname !== '/login') {
+         alert("Votre session a expiré. Veuillez vous reconnecter."); // Informer l'utilisateur
          window.location.href = "/login";
-         // Alternative avec react-router (si 'navigate' est disponible ici via un contexte par ex.)
-         // navigate('/login', { replace: true });
       }
     }
     // Retourne l'erreur pour qu'elle puisse être gérée par le code appelant (ex: dans un catch).
@@ -72,8 +72,8 @@ api.interceptors.response.use(
 export const authService = {
   login: (credentials) => api.post("/Account/login", credentials),
   register: (userData) => api.post("/Account/register", userData),
-  logout: () => api.post("/Account/logout"), // Peut être appelé même si peu utile côté serveur
-  getUserInfo: () => api.get("/Account/user-info"), // Important après le login ou au chargement
+  logout: () => api.post("/Account/logout"), // Peut être utile pour invalider côté serveur si implémenté
+  getUserInfo: () => api.get("/Account/user-info"), // Pour vérifier le token et récupérer les infos user
 };
 
 
@@ -81,46 +81,99 @@ export const authService = {
 export const annonceService = {
   getAll: () => api.get("/Annonces"),                   // GET /api/Annonces
   getById: (id) => api.get(`/Annonces/${id}`),          // GET /api/Annonces/{id}
-  create: (formData) => api.post("/Annonces", formData, {
-    // On dit à Axios de laisser le navigateur gérer le Content-Type pour FormData
-    headers: {
-      'Content-Type': undefined // ou null
-    }
+  create: (formData) => api.post("/Annonces", formData, { // Note: FormData gère son Content-Type
+    headers: { 'Content-Type': undefined }
   }),
-
-  // --- MODIFIÉ ICI ---
-  update: (id, formData) => api.put(`/Annonces/${id}`, formData, {
-    // Idem pour la mise à jour
-    headers: {
-      'Content-Type': undefined // ou null
-    }
+  update: (id, formData) => api.put(`/Annonces/${id}`, formData, { // Note: FormData gère son Content-Type
+    headers: { 'Content-Type': undefined }
   }),
-  delete: (id) => api.delete(`/Annonces/${id}`),        // DELETE /api/Annonces/{id}
-  // La demande de suppression par le Vendeur
-  requestDeletion: (id) => api.patch(`/Annonces/${id}/request-deletion`), // PATCH .../request-deletion
-  // La confirmation (suppression physique) par l'Admin
-  confirmDelete: (id) => api.patch(`/Annonces/${id}/confirm-soft-delete`), // PATCH .../confirm-soft-delete
-  // Lister les annonces en attente de suppression (pour Admin)
-  getPendingDeletion: () => api.get("/Annonces/pending-deletion"),       // GET .../pending-deletion
-  // Lister les annonces d'un vendeur spécifique
-  getByVendeur: (vendeurId) => api.get(`/Annonces/vendeur/${vendeurId}`), // GET .../vendeur/{vendeurId}
-
-   // --- AJOUT : Fonction pour récupérer les archives ---
-   getArchives: () => api.get("/Annonces/archives"),
+  delete: (id) => api.delete(`/Annonces/${id}`),        // DELETE /api/Annonces/{id} (suppression physique Admin)
+  requestDeletion: (id) => api.patch(`/Annonces/${id}/request-deletion`), // PATCH demande suppression Vendeur
+  // confirmDelete: (id) => api.patch(`/Annonces/${id}/confirm-soft-delete`), // Action Admin (semble supprimée/modifiée dans votre API)
+  getPendingDeletion: () => api.get("/Annonces/pending-deletion"),       // GET annonces en attente de suppression
+  getByVendeur: (vendeurId) => api.get(`/Annonces/vendeur/${vendeurId}`), // GET annonces d'un vendeur
+  getArchives: () => api.get("/Annonces/archives"), // GET archives
 };
 
 // Service pour les consultations Annonce/Client
 export const annonceClientService = {
-   // Lister les visiteurs d'une annonce (pour Admin)
-   getVisiteurs: (annonceId) => api.get(`/annonces/${annonceId}/visiteurs`), // GET /api/annonces/{annonceId}/visiteurs
-   // Compter les visiteurs uniques d'une annonce
-   getVisiteurCount: (annonceId) => api.get(`/annonces/${annonceId}/visiteur-count`), // GET /api/annonces/{annonceId}/visiteur-count
-   // Lister les annonces visitées par un client (pour Admin)
-   getAnnoncesVisitees: (clientId) => api.get(`/clients/${clientId}/annonces-visitees`), // GET /api/clients/{clientId}/annonces-visitees
+   getVisiteurs: (annonceId) => api.get(`/Annonces/${annonceId}/visiteurs`), // Route corrigée Annonces
+   getVisiteurCount: (annonceId) => api.get(`/Annonces/${annonceId}/visiteur-count`), // Route corrigée Annonces
+   getAnnoncesVisitees: (clientId) => api.get(`/Account/client/${clientId}/annonces-visitees`), // Route exemple, ajustez selon votre AccountController
 };
 
+// --- MODIFICATION : Service pour le Chat (Logique Polling) ---
+export const chatService = {
+  // Récupère l'historique initial d'une conversation
+  getHistory: (otherUserId, options = {}) => {
+    const params = new URLSearchParams();
+    if (options.before) params.append('before', options.before);
+    if (options.count) params.append('count', options.count);
+    console.log(`[API Call] getHistory for ${otherUserId}`);
+    // Appelle GET /api/Chat/history/{otherUserId}
+    return api.get(`/Chat/history/${otherUserId}`, { params });
+  },
 
-// --- SERVICES DE L'ANCIEN PROJET (COMMENTÉS - À SUPPRIMER SI INUTILES) ---
+  // Récupère les nouveaux messages dans une conversation spécifique depuis un timestamp
+  // Utilisé par le polling de ChatWindow
+  getNewMessages: (otherUserId, sinceUtcTimestamp) => {
+    let sinceParam = new Date(0).toISOString(); // Valeur par défaut sûre
+    try {
+      // Ajouter 1 milliseconde pour éviter de récupérer le dernier message exact
+      const sinceDate = new Date(sinceUtcTimestamp);
+      // Vérifier si la date est valide avant d'ajouter des millisecondes
+      if (!isNaN(sinceDate.getTime())) {
+         sinceDate.setMilliseconds(sinceDate.getMilliseconds() + 1);
+         sinceParam = sinceDate.toISOString();
+      } else {
+          console.warn(`[API Call getNewMessages] Timestamp invalide reçu: ${sinceUtcTimestamp}. Utilisation de la date par défaut.`);
+      }
+    } catch (e) {
+      console.error("[API Call getNewMessages] Erreur conversion date 'sinceUtc'", e);
+    }
+    console.log(`[API Call] getNewMessages for ${otherUserId} since ${sinceParam}`);
+    // Appelle GET /api/Chat/new/{otherUserId}?sinceUtc=...
+    return api.get(`/Chat/new/${otherUserId}`, { params: { sinceUtc: sinceParam } });
+  },
+
+  // === NOUVEAU (si utilisé par AuthContext) : Récupère TOUS les nouveaux messages pour l'utilisateur actuel ===
+  // NOTE : Assurez-vous que l'endpoint `/api/Chat/new/all` existe bien côté backend !
+  getAllNewMessages: (sinceUtcTimestamp) => {
+    let sinceParam = new Date(0).toISOString(); // Valeur par défaut
+    try {
+       const sinceDate = new Date(sinceUtcTimestamp);
+       if (!isNaN(sinceDate.getTime())) {
+          // Pas besoin d'ajouter 1ms ici, on veut tous les messages strictement après
+          sinceParam = sinceDate.toISOString();
+       } else {
+           console.warn(`[API Call getAllNewMessages] Timestamp invalide reçu: ${sinceUtcTimestamp}. Utilisation de la date par défaut.`);
+       }
+    } catch (e) {
+      console.error("[API Call getAllNewMessages] Erreur conversion date 'sinceUtc'", e);
+    }
+     console.log(`[API Call] getAllNewMessages since ${sinceParam}`);
+     // Appelle GET /api/Chat/new/all?sinceUtc=...
+     return api.get(`/Chat/new/all`, { params: { sinceUtc: sinceParam } });
+  },
+  // === FIN NOUVEAU ===
+
+  // Envoie un nouveau message via API POST
+  sendMessageApi: (recipientId, content) => {
+    console.log(`[API Call] sendMessageApi to ${recipientId}`);
+    // Appelle POST /api/Chat/send
+    return api.post(`/Chat/send`, { recipientId: recipientId, content: content });
+  },
+
+   // Marque une conversation comme lue via API POST (Optionnel)
+   markAsReadApi: (senderId) => {
+       console.log(`[API Call] markAsReadApi for sender ${senderId}`);
+       // Appelle POST /api/Chat/markasread/{senderId}
+       return api.post(`/Chat/markasread/${senderId}`);
+   }
+};
+// --- FIN MODIFICATION Service Chat ---
+
+// --- SERVICES DE L'ANCIEN PROJET (COMMENTÉS) ---
 /*
 export const projectService = { ... };
 export const taskService = { ... };

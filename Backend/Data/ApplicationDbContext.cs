@@ -14,7 +14,9 @@ namespace Projet1.Data // Assurez-vous que le namespace est correct
         public DbSet<Annonce_Client> AnnonceClients { get; set; } = null!;
         // --- AJOUT DbSet Archive ---
         public DbSet<ArchiveDesAnnoncesSupprime> ArchivesAnnonces { get; set; } = null!;
-        // --- FIN AJOUT ---
+        // --- AJOUT DbSet Message ---
+               public DbSet<Message> Messages { get; set; } = null!;
+
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -93,6 +95,36 @@ namespace Projet1.Data // Assurez-vous que le namespace est correct
                 entity.HasIndex(e => e.AdminIdSuppresseur); // Index sur qui a supprimé
                 entity.HasIndex(e => e.DateSuppression); // Index sur quand ça a été supprimé
             });
+
+// --- AJOUT : Configuration pour l'entité Message ---
+            builder.Entity<Message>(entity =>
+            {
+                entity.HasKey(m => m.Id); // Clé primaire
+
+                // Relation vers l'expéditeur (Sender)
+                entity.HasOne(m => m.Sender)
+                      .WithMany() // Un utilisateur peut envoyer plusieurs messages
+                      .HasForeignKey(m => m.SenderId)
+                      .IsRequired()
+                      .OnDelete(DeleteBehavior.Restrict); // Empêcher la suppression d'un user s'il a envoyé des messages ? Ou Cascade ? A définir. Restrict est plus sûr.
+
+                // Relation vers le destinataire (Recipient)
+                entity.HasOne(m => m.Recipient)
+                      .WithMany() // Un utilisateur peut recevoir plusieurs messages
+                      .HasForeignKey(m => m.RecipientId)
+                      .IsRequired()
+                      .OnDelete(DeleteBehavior.Restrict); // Idem
+
+                // Index pour améliorer la recherche par conversation et date
+                entity.HasIndex(m => new { m.SenderId, m.RecipientId, m.Timestamp });
+                entity.HasIndex(m => new { m.RecipientId, m.SenderId, m.Timestamp }); // Pour l'autre sens de la conversation
+                entity.HasIndex(m => m.Timestamp); // Pour trier par date
+                 entity.HasIndex(m => new { m.RecipientId, m.IsRead }); // Pour trouver rapidement les non-lus
+            });
+
+
+
+
             // --- FIN AJOUT ---
 
         }
