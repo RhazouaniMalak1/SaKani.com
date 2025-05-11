@@ -11,7 +11,7 @@ function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    userType: "Client", // Valeur initiale (chaîne de caractères)
+    userType: "Client", // Valeur initiale par défaut (un des types possibles)
   });
   // État pour les erreurs générales
   const [error, setError] = useState("");
@@ -21,7 +21,7 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate(); // Hook pour la redirection
 
-  // Gère les changements dans les champs du formulaire
+  // Gère les changements dans les champs du formulaire (utilisé pour les inputs textuels)
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -35,6 +35,20 @@ function Register() {
     }
   };
 
+  // NOUVEAU: Gère la sélection du type d'utilisateur via les boutons
+  const handleUserTypeSelect = (userType) => {
+    setFormData((prev) => ({ ...prev, userType: userType }));
+     // Efface l'erreur de validation pour userType si elle existe
+    if (validationErrors.userType) {
+        setValidationErrors(prev => {
+            const newErrors = {...prev};
+            delete newErrors.userType;
+            return newErrors;
+        });
+    }
+  };
+
+
   // Fonction pour traiter et afficher les erreurs reçues du backend
   const displayErrors = (errorData) => {
     let messages = [];
@@ -43,6 +57,8 @@ function Register() {
     if (errorData && errorData.errors) {
       for (const key in errorData.errors) {
         messages.push(...errorData.errors[key]);
+        // Convertir la clé PascalCase en camelCase pour correspondre aux noms des champs dans le state `formData`
+        // Exemple: "UserType" -> "userType"
         const fieldName = key.charAt(0).toLowerCase() + key.slice(1);
         if (!fieldErrors[fieldName]) {
            fieldErrors[fieldName] = errorData.errors[key][0];
@@ -58,9 +74,12 @@ function Register() {
     } else {
         messages.push("Une erreur inconnue est survenue.");
     }
-    setError(messages.join(" ")); // Afficher toutes les erreurs concaténées
+    // Afficher toutes les erreurs qui n'ont pas été mappées à un champ spécifique comme erreur générale
+    const generalErrorMessage = messages.filter(msg => !Object.values(fieldErrors).includes(msg)).join(" ");
+    setError(generalErrorMessage);
     setValidationErrors(fieldErrors); // Stocker les erreurs par champ
   };
+
 
   // Gère la soumission du formulaire
   const handleSubmit = async (e) => {
@@ -78,6 +97,7 @@ function Register() {
     }
 
     // --- CONVERSION DE userType (string) EN NOMBRE ---
+    // Cette logique reste la même et est cruciale pour envoyer la bonne valeur numérique à l'API
     let userTypeValue;
     switch (formData.userType) {
       case "Admin":
@@ -87,7 +107,7 @@ function Register() {
         userTypeValue = 2;
         break;
       case "Client":
-      default: // Sécurité si la valeur est inattendue
+      default: // Sécurité si la valeur est inattendue (par défaut à Client si non spécifié)
         userTypeValue = 3;
         break;
     }
@@ -100,7 +120,7 @@ function Register() {
       email: formData.email,
       password: formData.password,
       confirmPassword: formData.confirmPassword, // Envoyer pour validation backend si nécessaire
-      userType: userTypeValue, // Envoyer la valeur NUMÉRIQUE
+      userType: userTypeValue, // Envoyer la valeur NUMÉRIQUE déterminée par la sélection
     };
 
     try {
@@ -141,15 +161,19 @@ function Register() {
 
       <div className="card login-card">
         <div className="card-header">
-          {/* Logo et Titre (à adapter) */}
-          <div className="login-logo">{/* ... svg ... */}</div>
-          <h1 className="card-title text-center">Votre Application</h1>
+          {/* Logo et Titre */}
+          <div className="login-logo">
+             {/* Assurez-vous que le SVG du logo est bien ici */}
+             {/* <svg ... votre svg ici ... ></svg> */}
+          </div>
+          <h1 className="card-title text-center">Sakani.com</h1>
           <p className="card-description text-center">Créez votre compte</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card-content">
           {/* Affichage des erreurs générales (si pas d'erreur spécifique de champ) */}
-          {error && !Object.keys(validationErrors).length > 0 && (
+           {/* Modifié pour afficher l'erreur générale même s'il y a des erreurs de champ spécifiques */}
+          {error && (
             <div className="form-group">
               <div className="error-message">{error}</div>
             </div>
@@ -215,20 +239,37 @@ function Register() {
             {validationErrors.confirmPassword && <div className="invalid-feedback">{validationErrors.confirmPassword}</div>}
           </div>
 
-          {/* Select Type de compte */}
+          {/* !!! NOUVEAU : Groupe de Boutons pour Type de compte !!! */}
           <div className="form-group">
-            <label htmlFor="userType" className="form-label">Type de compte</label>
-            <select
-              id="userType" name="userType" required
-              className={`form-input ${validationErrors.userType ? 'is-invalid' : ''}`}
-              value={formData.userType} onChange={handleChange}
-            >
-              <option value="Client">Client</option>
-              <option value="Vendeur">Vendeur</option>
-              <option value="Admin">Admin</option>
-            </select>
+            <label className="form-label">Type de compte</label> {/* Label for the group */}
+            <div className="user-type-buttons"> {/* Container for the buttons */}
+              <button
+                type="button" // Important: type="button" pour ne pas soumettre le formulaire
+                className={`user-type-button ${formData.userType === 'Client' ? 'selected' : ''}`}
+                onClick={() => handleUserTypeSelect('Client')}
+              >
+                Espace Client
+              </button>
+              <button
+                type="button"
+                 className={`user-type-button ${formData.userType === 'Vendeur' ? 'selected' : ''}`}
+                 onClick={() => handleUserTypeSelect('Vendeur')}
+              >
+                Espace Vendeur
+              </button>
+              <button
+                type="button"
+                 className={`user-type-button ${formData.userType === 'Admin' ? 'selected' : ''}`}
+                 onClick={() => handleUserTypeSelect('Admin')}
+              >
+                Espace Admin
+              </button>
+            </div>
+             {/* Afficher l'erreur de validation spécifique à userType sous les boutons */}
             {validationErrors.userType && <div className="invalid-feedback">{validationErrors.userType}</div>}
           </div>
+          {/* !!! FIN NOUVEAU !!! */}
+
 
           {/* Bouton d'inscription */}
           <button type="submit" className="btn btn-primary w-100" disabled={loading}>

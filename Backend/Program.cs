@@ -227,7 +227,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-
+app.UseDefaultFiles(); // <-- Pour Hebergement------------------------------------------------
 app.UseStaticFiles(); // Pour wwwroot
 
 // Servir les fichiers depuis Uploads (Inchangé)

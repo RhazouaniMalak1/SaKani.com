@@ -1,0 +1,89 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\asset-manifest.json",
+      "PackagePath": "staticwebassets\\asset-manifest.json"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\asset\\ggg.png",
+      "PackagePath": "staticwebassets\\asset\\ggg.png"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\asset\\nn.jpg",
+      "PackagePath": "staticwebassets\\asset\\nn.jpg"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\asset\\rre.png",
+      "PackagePath": "staticwebassets\\asset\\rre.png"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\favicon.ico",
+      "PackagePath": "staticwebassets\\favicon.ico"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\index.html",
+      "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\logo192.png",
+      "PackagePath": "staticwebassets\\logo192.png"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\logo512.png",
+      "PackagePath": "staticwebassets\\logo512.png"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\manifest.json",
+      "PackagePath": "staticwebassets\\manifest.json"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\robots.txt",
+      "PackagePath": "staticwebassets\\robots.txt"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\css\\main.b1f7fe31.css",
+      "PackagePath": "staticwebassets\\static\\css\\main.b1f7fe31.css"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\css\\main.b1f7fe31.css.map",
+      "PackagePath": "staticwebassets\\static\\css\\main.b1f7fe31.css.map"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\js\\453.8ab44547.chunk.js",
+      "PackagePath": "staticwebassets\\static\\js\\453.8ab44547.chunk.js"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\js\\453.8ab44547.chunk.js.map",
+      "PackagePath": "staticwebassets\\static\\js\\453.8ab44547.chunk.js.map"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\js\\main.4746ea8c.js",
+      "PackagePath": "staticwebassets\\static\\js\\main.4746ea8c.js"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\js\\main.4746ea8c.js.LICENSE.txt",
+      "PackagePath": "staticwebassets\\static\\js\\main.4746ea8c.js.LICENSE.txt"
+    },
+    {
+      "Id": "C:\\Users\\USER\\OneDrive\\Bureau\\Malak\\Projet1\\Backend\\wwwroot\\static\\js\\main.4746ea8c.js.map",
+      "PackagePath": "staticwebassets\\static\\js\\main.4746ea8c.js.map"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.Projet1.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.build.Projet1.props",
+      "PackagePath": "build\\Projet1.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.Projet1.props",
+      "PackagePath": "buildMultiTargeting\\Projet1.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildTransitive.Projet1.props",
+      "PackagePath": "buildTransitive\\Projet1.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

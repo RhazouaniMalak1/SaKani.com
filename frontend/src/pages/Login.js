@@ -97,7 +97,7 @@ function Login() {
             </svg>
           </div>
           {/* Titre et description */}
-          <h1 className="card-title text-center">Votre Application</h1>
+          <h1 className="card-title text-center">Sakani.com</h1>
           <p className="card-description text-center">Connectez-vous pour accéder</p>
         </div>
 
