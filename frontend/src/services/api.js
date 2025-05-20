@@ -95,12 +95,18 @@ export const annonceService = {
   getArchives: () => api.get("/Annonces/archives"), // GET archives
 };
 
+
 // Service pour les consultations Annonce/Client
 export const annonceClientService = {
-   getVisiteurs: (annonceId) => api.get(`/Annonces/${annonceId}/visiteurs`), // Route corrigée Annonces
-   getVisiteurCount: (annonceId) => api.get(`/Annonces/${annonceId}/visiteur-count`), // Route corrigée Annonces
-   getAnnoncesVisitees: (clientId) => api.get(`/Account/client/${clientId}/annonces-visitees`), // Route exemple, ajustez selon votre AccountController
+  getVisiteurs: (annonceId) => api.get(`/Annonces/${annonceId}/visiteurs`),
+  getVisiteurCount: (annonceId) => api.get(`/Annonces/${annonceId}/visiteur-count`),
+  // CORRECTION : Le chemin doit être '/clients/' et non '/Account/client/'
+  getAnnoncesVisitees: (clientId) => api.get(`/clients/${clientId}/annonces-visitees`), // <-- CORRIGÉ
 };
+
+
+
+
 
 // --- MODIFICATION : Service pour le Chat (Logique Polling) ---
 export const chatService = {
